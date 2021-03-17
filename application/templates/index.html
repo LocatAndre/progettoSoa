@@ -1,0 +1,41 @@
+{% extends "./base.html" %}
+
+{% block content %}
+<div class="container">
+  <div class="columns is-multiline">
+  {% for match in data %}
+    <div class="column is-one-third">
+      <div class="card">
+        <div class="card-content">
+          <div class="media">
+            <div class="media-content is-6">
+              <div class="columns is-mobile">
+                <div class="column has-text-centered">
+                  <figure class="image is-64x64 is-inline-block">
+                    <img src="{{match['homeTeam']['imgSrc']}}" alt="Placeholder image">
+                  </figure><br>
+                  <strong>{{match['homeTeam']['name']}}</strong>
+                </div>
+                <div class="column">
+                  <p class="has-text-centered res"><strong>{{match['score']['homeTeam']}} -
+                      {{match['score']['awayTeam']}}</strong></p>
+                  <p class="has-text-centered is-size-7	">{{match['time']}}</p>
+                  <p class="has-text-centered is-size-7	">
+                    {{match['date'][8:10]}}/{{match['date'][5:7]}}/{{match['date'][0:4]}}</p>
+                </div>
+                <div class="column has-text-centered">
+                  <figure class="image is-64x64 is-inline-block">
+                    <img src="{{match['awayTeam']['imgSrc']}}" alt="Placeholder image">
+                  </figure><br>
+                  <strong>{{match['awayTeam']['name']}}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {%endfor%}
+  </div>
+</div>
+{% endblock %}
