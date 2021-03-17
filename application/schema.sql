@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS preferences;
 
 CREATE TABLE user (
     id integer PRIMARY KEY AUTOINCREMENT,
+    username text NOT NULL,
     email text NOT NULL,
     password NOT NULL
 );

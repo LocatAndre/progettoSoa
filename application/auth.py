@@ -20,9 +20,11 @@ from .db import get_db
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+
 @bp.route('/login')
 def login():
     return render_template('login.html')
+
 
 @bp.route('/login/checkuser', methods=['POST'])
 def checkuser():
@@ -49,6 +51,7 @@ def checkuser():
     flash(error)
     return redirect(url_for('auth.login'))
 
+
 @bp.before_app_request
 def load_logged_in_user():
     user_id = session.get('user_id')
@@ -56,14 +59,47 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = get_db().execute('SELECT * FROM user WHERE id = ?', (user_id,)
-                                  ).fetchone()
+        g.user = get_db().execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
 
 
 @bp.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('site.index'))
+
+
+@bp.route('/register/checkregister', methods=['POST'])
+def checkregister():
+    username = request.form['username']
+    password1 = request.form['password1']
+    password2 = request.form['password2']
+    email = request.form['email']
+
+    db = get_db()
+    error = None
+
+    if not username or not password1 or not password2 or not email:
+        error = 'Campi mancanti'
+    elif db.execute('SELECT id FROM user WHERE username = ?', (username,)
+                    ).fetchone() is not None:
+        error = '{} è già iscritto.'.format(username)
+    elif password1 != password2:
+        error = 'Le 2 password non coincidono'
+
+    if error is None:
+        db.execute('INSERT INTO user (email, username, password) VALUES (?, ?, ?)',
+                   (email, username, generate_password_hash(password1))
+                   )
+        db.commit()
+        return redirect(url_for('auth.login'))
+
+    flash(error)
+    return redirect(url_for('auth.register'))
+
+
+@bp.route('/register')
+def register():
+    return render_template('register.html')
 
 
 def login_required(view):

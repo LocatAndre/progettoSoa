@@ -6,11 +6,20 @@
         <div class="container">
             <div class="columns is-centered">
                 <div class="column is-5-tablet is-4-desktop is-3-widescreen">
-                    <form action="login/checkuser" method="POST" class="box">
+                    <form action="register/checkregister" method="POST" class="box">
+                        <div class="field">
+                            <label for="" class="label">Username</label>
+                            <div class="control has-icons-left">
+                                <input name="username" type="text" placeholder="e.g. PippoPepe" class="input" required>
+                                <span class="icon is-small is-left">
+                                    <i class="fa fa-user"></i>
+                                </span>
+                            </div>
+                        </div>
                         <div class="field">
                             <label for="" class="label">Email</label>
                             <div class="control has-icons-left">
-                                <input type="email" placeholder="e.g. pippo@gmail.com" class="input" required>
+                                <input name="email" type="email" placeholder="e.g. pippo@gmail.com" class="input" required>
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-envelope"></i>
                                 </span>
@@ -19,7 +28,7 @@
                         <div class="field">
                             <label for="" class="label">Password</label>
                             <div class="control has-icons-left">
-                                <input type="password" placeholder="*******" class="input" required>
+                                <input name="password1" type="password" placeholder="*******" class="input" required>
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-lock"></i>
                                 </span>
@@ -28,16 +37,16 @@
                         <div class="field">
                             <label for="" class="label">Retype Password</label>
                             <div class="control has-icons-left">
-                                <input type="password" placeholder="*******" class="input" required>
+                                <input name="password2" type="password" placeholder="*******" class="input" required>
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-lock"></i>
                                 </span>
                             </div>
                         </div>
                         <div class="field">
-                            <input type="submit" class="button is-success"></input>
-                            <a href="{{url_for('auth.register')}}" class="button is-text">Non registrato? Registrati!</a>
+                        <input type="submit" class="button is-success" value="Registrati">
                         </div>
+                        <a href="{{url_for('auth.login')}}" class="button is-text">Già registrato? Vai al login</a>
                     </form>
                     {% for message in get_flashed_messages() %}
                     <article class="message is-danger">
