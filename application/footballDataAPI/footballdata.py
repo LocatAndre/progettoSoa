@@ -85,7 +85,7 @@ def get_league_info():
         elif c['area']['countryCode'] == 'EUR':
             c['area']['ensignUrl'] = '../static/image/flag/european-union.svg'
         league ={
-            'name':     c['name'],
+            'name':     short_team_name(c['name']),
             'id':       c['id'],
             'nation':   c['area']['ensignUrl'],
             'matchday': c['currentSeason']['currentMatchday'],
@@ -125,10 +125,6 @@ def get_current_league_matchday_result(id, md):
                 'homeTeam': m['score']['fullTime']['homeTeam'],
                 'awayTeam': m['score']['fullTime']['awayTeam'],
             },
-            'referees': {
-                'main':     m['referees'][0]['name'],
-                'var':      m['referees'][4]['name'],
-            }
         }
         matchRes.append(match)
 
@@ -176,5 +172,7 @@ def short_team_name(st):
         return 'Milan'
     elif 'Napoli' in st:
         return 'Napoli'
+    elif 'UEFA Champions League' in st:
+        return 'Champions League'
     else:
         return st
