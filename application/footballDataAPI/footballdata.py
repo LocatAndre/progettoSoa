@@ -4,7 +4,7 @@ from flask import current_app, g
 
 site = 'api.football-data.org'
 teams = '/v2/teams/'
-competitions = '/v2/competitions/'
+competitions = '/v2/competitions'
 matches = '/v2/matches'
 
 
@@ -26,7 +26,7 @@ def all_league_team(id):
     connection = http.client.HTTPConnection(site)
     headers = {'X-Auth-Token': api_key}
 
-    connection.request('GET', competitions+str(id)+'/teams', None, headers)
+    connection.request('GET', competitions+'/'+str(id)+'/teams', None, headers)
     response = json.loads(connection.getresponse().read().decode())
 
     return response['teams']
@@ -48,10 +48,52 @@ def get_current_league_matchday(id):
     connection = http.client.HTTPConnection(site)
     headers = {'X-Auth-Token': api_key}
 
-    connection.request('GET', competitions+str(id), None, headers)
+    connection.request('GET', competitions+'?plan=TIER_ONE', None, headers)
     response = json.loads(connection.getresponse().read().decode())
 
-    return response['currentSeason']['currentMatchday']
+    for c in response['competitions']:
+        if c['id'] ==  id:
+            return c['currentSeason']['currentMatchday']
+
+def get_league_info():
+    api_key = current_app.config['API_KEY']
+    connection = http.client.HTTPConnection(site)
+    headers = {'X-Auth-Token': api_key}
+    connection.request('GET', competitions+'?plan=TIER_ONE', None, headers)
+    response = json.loads(connection.getresponse().read().decode())
+
+    listLeague = []
+    for c in response['competitions']:
+        if c['area']['countryCode'] == 'BRA':
+            c['area']['ensignUrl'] = '../static/image/flag/brazil.svg'
+        elif c['area']['countryCode'] == 'FRA':
+            c['area']['ensignUrl'] = '../static/image/flag/france.svg'
+        elif c['area']['countryCode'] == 'ITA':
+            c['area']['ensignUrl'] = '../static/image/flag/italy.svg'
+        elif c['area']['countryCode'] == 'ENG':
+            c['area']['ensignUrl'] = '../static/image/flag/england.svg'
+        elif c['area']['countryCode'] == 'DEU':
+            c['area']['ensignUrl'] = '../static/image/flag/germany.svg'
+        elif c['area']['countryCode'] == 'PRT':
+            c['area']['ensignUrl'] = '../static/image/flag/portugal.svg'
+        elif c['area']['countryCode'] == 'INT':
+            c['area']['ensignUrl'] = '../static/image/flag/worldwide.svg'
+        elif c['area']['countryCode'] == 'NLD':
+            c['area']['ensignUrl'] = '../static/image/flag/netherlands.svg'
+        elif c['area']['countryCode'] == 'ESP':
+            c['area']['ensignUrl'] = '../static/image/flag/spain.svg'
+        elif c['area']['countryCode'] == 'EUR':
+            c['area']['ensignUrl'] = '../static/image/flag/european-union.svg'
+        league ={
+            'name':     c['name'],
+            'id':       c['id'],
+            'nation':   c['area']['ensignUrl'],
+            'matchday': c['currentSeason']['currentMatchday'],
+            'start':    c['currentSeason']['startDate'],
+            'end':      c['currentSeason']['endDate']
+        }
+        listLeague.append(league)
+    return listLeague
 
 
 def get_current_league_matchday_result(id, md):
@@ -60,7 +102,7 @@ def get_current_league_matchday_result(id, md):
     connection = http.client.HTTPConnection(site)
     headers = {'X-Auth-Token': api_key}
 
-    connection.request('GET', competitions+str(id) +
+    connection.request('GET', competitions+'/'+str(id) +
                        '/matches?matchday='+str(md), None, headers)
     response = json.loads(connection.getresponse().read().decode())
 

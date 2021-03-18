@@ -3,34 +3,22 @@
 {% block content %}
 <div class="container">
   <div class="columns is-multiline">
-  {% for match in data %}
-    <div class="column is-one-third">
+    {% for league in data %}
+    <div class="column is-one-quarter-desktop is-half-tablet">
       <div class="card">
+        <div class="card-image">
+          <figure class="image is-96x96 is-left">
+            <img src="{{league['nation']}}" alt="Placeholder image">
+          </figure>
+        </div>
         <div class="card-content">
-          <div class="media">
-            <div class="media-content is-6">
-              <div class="columns is-mobile">
-                <div class="column has-text-centered">
-                  <figure class="image is-64x64 is-inline-block">
-                    <img src="{{match['homeTeam']['imgSrc']}}" alt="Placeholder image">
-                  </figure><br>
-                  <strong>{{match['homeTeam']['name']}}</strong>
-                </div>
-                <div class="column">
-                  <p class="has-text-centered res"><strong>{{match['score']['homeTeam']}} -
-                      {{match['score']['awayTeam']}}</strong></p>
-                  <p class="has-text-centered is-size-7	">{{match['time']}}</p>
-                  <p class="has-text-centered is-size-7	">
-                    {{match['date'][8:10]}}/{{match['date'][5:7]}}/{{match['date'][0:4]}}</p>
-                </div>
-                <div class="column has-text-centered">
-                  <figure class="image is-64x64 is-inline-block">
-                    <img src="{{match['awayTeam']['imgSrc']}}" alt="Placeholder image">
-                  </figure><br>
-                  <strong>{{match['awayTeam']['name']}}</strong>
-                </div>
-              </div>
-            </div>
+          <div class="content has-text-justified">
+            <h3>{{league['name']}}</h3>
+            <dl>
+              <dt><i class="fas fa-futbol"></i> <strong>Inizio:</strong> {{league['start'][8:10]}}/{{league['start'][5:7]}}/{{league['start'][0:4]}}</dt>
+              <dt><i class="fas fa-futbol"></i> <strong>Fine:</strong> {{league['end'][8:10]}}/{{league['end'][5:7]}}/{{league['end'][0:4]}}</dt>
+              <dt><i class="far fa-calendar-alt"></i> <strong>Giornata:</strong> {{league['matchday']}}</dt>
+            </ul>
           </div>
         </div>
       </div>

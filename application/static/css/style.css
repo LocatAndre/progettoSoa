@@ -7,3 +7,8 @@
     padding-top: 20px;
 
 }
+.card{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}

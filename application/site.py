@@ -5,5 +5,5 @@ bp = Blueprint('site', __name__)
 
 @bp.route('/')
 def index():
-    data = footballdata.get_current_league_matchday_result(2019, 27)
+    data = footballdata.get_league_info()
     return render_template('index.html', data = data)
