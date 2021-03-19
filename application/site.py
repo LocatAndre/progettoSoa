@@ -9,11 +9,10 @@ def index():
     data = footballdata.get_league_info()
     return render_template('index.html', data = data)
 
-@bp.route('/league', methods=['POST'])
+@bp.route('/result/<idLeague>/<matchday>')
 @login_required
-def selected_league():
-    league = request.form['idleague']
-    md = request.form['cm']
-    data = footballdata.get_current_league_matchday_result(league, md)
-
-    return render_template('result.html', data = data)
+def selected_league(idLeague,matchday):
+    league = idLeague
+    currentMatchday = footballdata.get_current_league_matchday(league)
+    data = footballdata.get_current_league_matchday_result(idLeague, matchday)
+    return render_template('result.html', data = data, cmd = currentMatchday, md = matchday, league=idLeague)

@@ -50,9 +50,8 @@ def get_current_league_matchday(id):
 
     connection.request('GET', competitions+'?plan=TIER_ONE', None, headers)
     response = json.loads(connection.getresponse().read().decode())
-
     for c in response['competitions']:
-        if c['id'] ==  id:
+        if int(c['id']) ==  int(id):
             return c['currentSeason']['currentMatchday']
 
 def get_league_info():
@@ -109,6 +108,9 @@ def get_current_league_matchday_result(id, md):
     matchRes = []
 
     for m in response['matches']:
+        if m['status'] == 'SCHEDULED':
+            m['score']['fullTime']['homeTeam'] = 0
+            m['score']['fullTime']['awayTeam'] = 0
         match = {
             'date':     m['utcDate'][:10],
             'time':     m['utcDate'][11:16],

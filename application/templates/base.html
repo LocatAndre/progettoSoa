@@ -7,16 +7,16 @@
   <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css"
     integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous" />
   <title>Hello Bulma!</title>
-  <link rel="stylesheet" href="../static/css/bulma.min.css">
-  <link rel="stylesheet" href="../static/css/bulma-rtl.min.css">
-  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bulma.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bulma-rtl.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='/css/style.css') }}">
 </head>
 {% include 'partial/navbar.html' %}
 
 <body>
   {% block content %}
   {% endblock %}
-  <script src="../static/js/animation.js"></script>
+  <script src="{{ url_for('static', filename='js/animation.js') }}"></script>
 </body>
 
 </html>

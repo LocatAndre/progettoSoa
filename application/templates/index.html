@@ -5,28 +5,25 @@
   <div class="columns is-multiline">
     {% for league in data %}
     <div class="column is-one-quarter-desktop is-half-tablet">
-      <div class="card">
+      <a class="card" href="/result/{{league['id']}}/{{league['matchday']}}">
         <div class="card-image">
           <figure class="image is-96x96 is-horizontal-centert">
             <img src="{{league['nation']}}" alt="Placeholder image">
           </figure>
         </div>
         <div class="card-content">
-          <form action="/league" method="POST">
-            <div class="content has-text-justified">
-              <h3>{{league['name']}}</h3>
-              <dl>
-                <dt><i class="fas fa-futbol"></i> <strong>Inizio:</strong> {{league['start'][8:10]}}/{{league['start'][5:7]}}/{{league['start'][0:4]}}</dt>
-                <dt><i class="fas fa-futbol"></i> <strong>Fine:</strong> {{league['end'][8:10]}}/{{league['end'][5:7]}}/{{league['end'][0:4]}}</dt>
-                <dt><i class="far fa-calendar-alt"></i> <strong>Giornata:</strong> {{league['matchday']}}</dt>
+          <div class="content has-text-justified">
+            <h3>{{league['name']}}</h3>
+            <dl>
+              <dt><i class="fas fa-futbol"></i> <strong>Inizio:</strong>
+                {{league['start'][8:10]}}/{{league['start'][5:7]}}/{{league['start'][0:4]}}</dt>
+              <dt><i class="fas fa-futbol"></i> <strong>Fine:</strong>
+                {{league['end'][8:10]}}/{{league['end'][5:7]}}/{{league['end'][0:4]}}</dt>
+              <dt><i class="far fa-calendar-alt"></i> <strong>Giornata:</strong> {{league['matchday']}}</dt>
               </ul>
-            </div>
-            <input type="text" name="cm" id="cm" value="{{league['matchday']}}" hidden>
-            <input type="text" name="idleague" id="idleague" value="{{league['id']}}" hidden>
-            <input type="submit" class="button is-primary">
-          </form>
+          </div>
         </div>
-      </div>
+      </a>
     </div>
     {%endfor%}
   </div>
