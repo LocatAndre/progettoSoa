@@ -5,21 +5,21 @@
   <div class="columns is-multiline">
     {% for league in data %}
     <div class="column is-one-quarter-desktop is-half-tablet">
-      <a class="card" href="/result/{{league['id']}}/{{league['matchday']}}">
+      <a class="card" href="/result/{{league['id']}}/{{league['currentMatchDay']}}">
         <div class="card-image">
-          <figure class="image is-96x96 is-horizontal-centert">
+          <figure class="image is-96x96 has-image-centered">
             <img src="{{league['nation']}}" alt="Placeholder image">
           </figure>
         </div>
         <div class="card-content">
-          <div class="content has-text-justified">
+          <div class="content has-text-centered">
             <h3>{{league['name']}}</h3>
             <dl>
               <dt><i class="fas fa-futbol"></i> <strong>Inizio:</strong>
-                {{league['start'][8:10]}}/{{league['start'][5:7]}}/{{league['start'][0:4]}}</dt>
+                {{league['startComp']}}</dt>
               <dt><i class="fas fa-futbol"></i> <strong>Fine:</strong>
-                {{league['end'][8:10]}}/{{league['end'][5:7]}}/{{league['end'][0:4]}}</dt>
-              <dt><i class="far fa-calendar-alt"></i> <strong>Giornata:</strong> {{league['matchday']}}</dt>
+                {{league['endComp']}}</dt>
+              <dt><i class="far fa-calendar-alt"></i> <strong>Giornata:</strong>{{league['currentMatchDay']}}</dt>
               </ul>
           </div>
         </div>
