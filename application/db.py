@@ -56,6 +56,12 @@ def add_league_matchday(comp, md):
     get_current_league_matchday_result_from_api(comp,md)
     click.echo('Giornata aggiunta')
 
+@click.command('delete-team-table')
+def delete_team_tabble():
+    db = get_db()
+    db.execute('DROP TABLE IF EXISTS team')
+    db.commit()
+
 def init_app(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(init_db_command)

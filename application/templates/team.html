@@ -1,0 +1,39 @@
+{% extends "./base.html" %}
+
+{%block content%}
+<section class="hero is-primary is-fullheight">
+    <div class="hero-body">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="card">
+                    <div class="card-content">
+                        <div class="content">
+                            <div class="columss">
+                                <div class="column">
+                                    <figure class="image is-128x128">
+                                        <img src="{{team['logo']}}">
+                                    </figure>
+                                </div>
+                                <div class="column">
+                                    <h3>{{team['name']}}</h3>
+                                    <dl>
+                                        <dt><i class="fas fa-baby-carriage"></i> {{team['founded']}}</dt>
+                                        <dt><i class="fab fa-fort-awesome"></i> {{team['venue']}}</dt>
+                                        </dt><i class="fas fa-tshirt"></i> {{team['clubColors']}}</dt>
+                                        <dt><i class="fas fa-globe"></i> <a href="{{team['website']}}">{{team['website']}}</a></dt>
+                                    </dl>
+                                    {%if check_fav == false %}
+                                        <a href="/team/{{team['id']}}/addFavourites" class="button is-danger is-rounded"><i class="fas fa-heart"></i></a>
+                                    {%else%}
+                                        <a href="/team/{{team['id']}}/removeFavourites" class="button is-danger is-rounded"><i class="fas fa-heart-broken"></i></a>
+                                    {%endif%}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{%endblock%}

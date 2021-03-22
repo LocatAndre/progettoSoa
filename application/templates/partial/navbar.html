@@ -12,12 +12,14 @@
     </div>
     <div id="usermenu" class="navbar-menu">
         <div class="navbar-start">
+            {% if g.user %}
             <a class="navbar-item" href="{{ url_for('site.index') }}">
                 Tutti i campionati
             </a>
-            <a href="" class="navbar-item">
+            <a href="{{ url_for('site.favouriteTeam') }}" class="navbar-item">
                 I miei seguiti
             </a>
+            {%endif%}
         </div>
         <div class="navbar-end">
             <div class="navbar-item">

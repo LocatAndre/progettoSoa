@@ -2,11 +2,8 @@
 
 {% block content %}
 <div class="container">
-  <hr>
-  {% include 'partial/pagination.html' %}
-
   <div class="columns is-multiline">
-    {% for match in data %}
+    {% for match in team %}
     <div class="column is-one-third">
       {% include 'partial/card.html' %}
     </div>

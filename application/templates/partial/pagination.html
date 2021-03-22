@@ -1,0 +1,16 @@
+<nav class="pagination is-centered is-small role=" navigation" aria-label="pagination">
+    <ul class="pagination-list">
+      {%if md > 2%}
+      <li><a class="pagination-link" href="/result/{{league}}/1" aria-label="Goto page 1">1</a></li>
+      <li><span class="pagination-ellipsis">&hellip;</span></li>
+      {%endif%}
+      <li><a class="pagination-link" href="/result/{{league}}/{{md-1}}" aria-label="Goto page {{md-1}}">{{md-1}}</a></li>
+      <li><a class="pagination-link is-current" href="/result/{{league}}/{{md}}" aria-label="Page {{md}}"
+          aria-current="page">{{md}}</a></li>
+      {%if md < cmd%} <li><a class="pagination-link" href="/result/{{league}}/{{md+1}}"
+          aria-label="Goto page {{md+1}}">{{md+1}}</a></li>
+        <li><span class="pagination-ellipsis">&hellip;</span></li>
+        <li><a class="pagination-link" href="/result/{{league}}/{{cmd}}" aria-label="Goto page 86">{{cmd}}</a></li>
+        {%endif%}
+    </ul>
+  </nav>

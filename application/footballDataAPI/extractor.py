@@ -33,9 +33,9 @@ def get_team_info_from_api(id):
         if team['crestUrl'] == None:
             team['crestUrl'] = '../static/image/error.svg'
         db = get_db()
-        db.execute('''INSERT OR IGNORE INTO team (id, name, shortname, tla, logo, venue, founded) VALUES (?,?,?,?,?,?,?)''',
+        db.execute('''INSERT OR IGNORE INTO team (id, name, shortname, tla, logo, venue, founded, clubColors, website) VALUES (?,?,?,?,?,?,?,?,?)''',
                    (team['id'], team['name'], team['shortName'], team['tla'],
-                    team['crestUrl'], team['venue'], team['founded'])
+                    team['crestUrl'], team['venue'], team['founded'], team['clubColors'], team['website'])
                    )
         db.commit()
 
@@ -142,13 +142,9 @@ def update_results_from_api(competition, matchday):
             m['score']['fullTime']['homeTeam'] = 0
             m['score']['fullTime']['awayTeam'] = 0
 
-        if m['status'] != 'FINISHED':
-            db.execute('''UPDATE matches set homeTeamScore=? awayTeamScore=? status=?
-                WHERE competitions=? and matchday=? and homeTeam=? and awayTeam=?
+        db.execute('''UPDATE matches set homeTeamScore=?, awayTeamScore=?, status=?
+                WHERE competition=? and matchday=? and homeTeam=? and awayTeam=?
             ''', (m['score']['fullTime']['homeTeam'], m['score']['fullTime']['awayTeam'], m['status'], competition, matchday, m['homeTeam']['id'], m['awayTeam']['id']))
-
-        db.execute('''INSERT INTO matches (matchday, competition, homeTeam, awayTeam, homeTeamScore, awayTeamScore, time, dateMatch, status) VALUES (?,?,?,?,?,?,?,?,?)''',
-                   (matchday, competition, m['homeTeam']['id'], m['awayTeam']['id'], m['score']['fullTime']['homeTeam'], m['score']['fullTime']['awayTeam'], time, date, m['status']))
         db.commit()
 
 

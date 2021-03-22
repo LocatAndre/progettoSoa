@@ -48,5 +48,15 @@ CREATE TABLE team (
     tla text NOT NULL,
     logo text NOT NULL,
     venue text,
-    founded text
-)
+    founded text,
+    clubColors text,
+    website text
+);
+
+CREATE TABLE player (
+    name text,
+    position text,
+    birth date,
+    nationality text,
+    role text
+);

@@ -21,3 +21,7 @@
     margin-left: auto;
     margin-right: auto;
   }
+
+.button.is-rounded {
+    border-radius: 290486px;
+}
