@@ -14,6 +14,3 @@ def init_app():
     app.register_blueprint(auth.bp)
 
     return app
-
-
-
