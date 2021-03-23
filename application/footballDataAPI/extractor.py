@@ -80,7 +80,7 @@ def get_league_info_from_api():
     return listLeague
 
 
-def live_match():
+def live_match_from_api():
     api_key = current_app.config['API_KEY']
     connection = http.client.HTTPConnection(site)
     headers = {'X-Auth-Token': api_key}

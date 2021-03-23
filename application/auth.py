@@ -23,7 +23,7 @@ bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @bp.route('/login')
 def login():
-    return render_template('login.html')
+    return render_template('site/login.html')
 
 
 @bp.route('/login/checkuser', methods=['POST'])
@@ -99,7 +99,7 @@ def checkregister():
 
 @bp.route('/register')
 def register():
-    return render_template('register.html')
+    return render_template('site/register.html')
 
 
 def login_required(view):

@@ -6,7 +6,9 @@ from flask.cli import with_appcontext
 from application.footballDataAPI.extractor import(
     get_league_info_from_api, 
     get_team_info_from_api,
-    get_current_league_matchday_result_from_api
+    get_current_league_matchday_result_from_api,
+    get_current_league_matchday_from_api
+
 )
 
 def init_db():
@@ -34,6 +36,12 @@ def get_db():
 def init_db_command():
     init_db()
     click.echo('Creazione database')
+
+@click.command('league-md')
+@with_appcontext
+def get_current_league_matchday():
+    get_current_league_matchday_from_api()
+    click.echo('Giornata aggiornata')
 
 @click.command('get-info-team')
 @click.argument('team', nargs=1)
@@ -68,3 +76,4 @@ def init_app(app):
     app.cli.add_command(add_league)
     app.cli.add_command(add_team)
     app.cli.add_command(add_league_matchday)
+    app.cli.add_command(get_current_league_matchday)

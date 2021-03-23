@@ -4,7 +4,8 @@ from flask import current_app, g
 from application.footballDataAPI.extractor import(
     get_current_league_matchday_result_from_api,
     get_current_league_matchday_from_api,
-    update_results_from_api
+    update_results_from_api,
+    live_match_from_api
 )
 
 
@@ -20,8 +21,6 @@ def get_db():
 
 
 def get_competitions():
-    # Implementare una volta al giorno
-    # get_current_league_matchday_from_api()
     db = get_db()
     return db.execute('select * from competition').fetchall()
 
@@ -107,3 +106,9 @@ def get_favourite_team(user_id):
             awayTeam IN (SELECT team_id FROM user_team WHERE user_id=?)
         ) AND matches.competition != 2001''', (user_id, user_id)
     ).fetchall()
+
+def get_live_result():
+    live = live_match_from_api()
+
+    return live
+
