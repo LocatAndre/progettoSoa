@@ -22,10 +22,11 @@
                                         </dt><i class="fas fa-tshirt"></i> {{team['clubColors']}}</dt>
                                         <dt><i class="fas fa-globe"></i> <a href="{{team['website']}}">{{team['website']}}</a></dt>
                                     </dl>
+                                    <a class="button is-primary is-rounded" href="{{url_for('site.selected_league', competition=competition, matchday=cmd)}}"><i class="fas fa-chevron-left"></i></i>Indietro</a>
                                     {%if check_fav == false %}
                                         <a href="/team/{{team['id']}}/addFavourites" class="button is-danger is-rounded"><i class="fas fa-heart"></i></a>
                                     {%else%}
-                                        <a href="/team/{{team['id']}}/removeFavourites" class="button is-danger is-rounded"><i class="fas fa-heart-broken"></i></a>
+                                        <a href="/team/{{team['id']}}/removeFavourites" class="button is-danger is-rounded is-outlined"><i class="fas fa-heart-broken"></i></a>
                                     {%endif%}
                                 </div>
                             </div>

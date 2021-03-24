@@ -5,7 +5,7 @@
           <div class="columns is-mobile">
             <div class="column has-text-centered">
               <figure class="image is-64x64 is-inline-block">
-                <a href="/team/{{match['homeTeam']}}">
+                <a href="/team/{{match['competition']}}/{{match['homeTeam']}}">
                   <img src="{{match['hlogo']}}" alt="Placeholder image">
                 </a>
               </figure><br>
@@ -20,7 +20,7 @@
             </div>
             <div class="column has-text-centered">
               <figure class="image is-64x64 is-inline-block">
-                <a href="/team/{{match['awayTeam']}}">
+                <a href="/team/{{match['competition']}}/{{match['awayTeam']}}">
                   <img src="{{match['alogo']}}" alt="Placeholder image">
                 </a>
               </figure><br>

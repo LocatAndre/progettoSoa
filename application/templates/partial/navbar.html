@@ -27,8 +27,8 @@
                         <div class="navbar-item">
                             <div class="buttons">
                                 {% if g.user %}
-                                <button class="button is-primary"><strong>{{g.user['username']}}</strong></button>
-                                <a class="button is-danger" href="{{ url_for('auth.logout') }}">Log Out</a>
+                                <a class="button is-primary" href="{{ url_for('site.userInfo') }}"><strong>{{g.user['username']}}</strong></a>
+                                <a class="button is-danger is-outlined" href="{{ url_for('auth.logout') }}">Log Out</a>
                                 {% else %}
                                 <a class="button is-primary" href="{{url_for('auth.register')}}">
                                     <strong>Sign up</strong>

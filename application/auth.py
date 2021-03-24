@@ -80,11 +80,13 @@ def checkregister():
 
     if not username or not password1 or not password2 or not email:
         error = 'Campi mancanti'
-    elif db.execute('SELECT id FROM user WHERE username = ?', (username,)
+    elif db.execute('SELECT id FROM user WHERE email = ?', (email,)
                     ).fetchone() is not None:
         error = '{} è già iscritto.'.format(username)
     elif password1 != password2:
         error = 'Le 2 password non coincidono'
+    elif password1 == password1 and len(password1) < 8:
+        error = 'Password troppo fragile'
 
     if error is None:
         db.execute('INSERT INTO user (email, username, password) VALUES (?, ?, ?)',

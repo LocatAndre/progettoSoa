@@ -6,11 +6,11 @@
         <div class="container">
             <div class="columns is-centered">
                 <div class="column is-5-tablet is-4-desktop is-3-widescreen">
-                    <form action="register/checkregister" method="POST" class="box">
+                    <form action="/user/updateUser" method="POST" class="box">
                         <div class="field">
                             <label for="" class="label">Username</label>
                             <div class="control has-icons-left">
-                                <input name="username" type="text" placeholder="e.g. PippoPepe" class="input" required>
+                                <input name="username" type="text" value="{{user['username']}}" class="input" required>
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-user"></i>
                                 </span>
@@ -19,16 +19,16 @@
                         <div class="field">
                             <label for="" class="label">Email</label>
                             <div class="control has-icons-left">
-                                <input name="email" type="email" placeholder="e.g. pippo@gmail.com" class="input" required>
+                                <input name="email" type="email" value="{{user['email']}}" class="input">
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-envelope"></i>
                                 </span>
                             </div>
                         </div>
                         <div class="field">
-                            <label for="" class="label">Password</label>
+                            <label for="" class="label">Nuova Password</label>
                             <div class="control has-icons-left">
-                                <input name="password1" type="password" placeholder="*******" class="input" required>
+                                <input name="password1" type="password" placeholder="*******" class="input">
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-lock"></i>
                                 </span>
@@ -38,16 +38,25 @@
                         <div class="field">
                             <label for="" class="label">Retype Password</label>
                             <div class="control has-icons-left">
-                                <input name="password2" type="password" placeholder="*******" class="input" required>
+                                <input name="password2" type="password" placeholder="*******" class="input">
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-lock"></i>
                                 </span>
                             </div>
                         </div>
                         <div class="field">
-                        <input type="submit" class="button is-success" value="Registrati">
+                            <label for="" class="label">Vecchia password</label>
+                            <div class="control has-icons-left">
+                                <input name="oldPassword" type="password" placeholder="*******" class="input">
+                                <span class="icon is-small is-left">
+                                    <i class="fa fa-lock"></i>
+                                </span>
+                            </div>
                         </div>
-                        <a href="{{url_for('auth.login')}}" class="button is-text">Già registrato? Vai al login</a>
+                        <div class="field">
+                        <input type="submit" class="button is-success" value="Aggiorna">
+                        <a class="button is-danger is-outlined" href="/user/delete">Elimina utente</a>
+                        </div>
                     </form>
                     {% for message in get_flashed_messages() %}
                     <article class="message is-danger">

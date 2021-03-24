@@ -41,7 +41,7 @@ def get_matchday(competition, matchday):
                          ).fetchone()
     if matches == None:
         get_current_league_matchday_result_from_api(competition, matchday)
-        matches = db.execute('''SELECT matchday, homeTeam, awayTeam, homeTeamScore, awayTeamScore, time, dateMatch, t1.tla as hname, t2.tla as aname, t1.logo as hlogo, t2.logo as alogo FROM matches
+        matches = db.execute('''SELECT matchday, matches.competition, homeTeam, awayTeam, homeTeamScore, awayTeamScore, time, dateMatch, t1.tla as hname, t2.tla as aname, t1.logo as hlogo, t2.logo as alogo FROM matches
         INNER JOIN team AS t1 ON homeTeam = t1.id
         INNER JOIN team AS t2 ON awayTeam = t2.id
         WHERE matchday=? and competition=?''',
@@ -49,7 +49,7 @@ def get_matchday(competition, matchday):
                              ).fetchall()
         return matches
     else:
-        matches = db.execute('''SELECT matchday, homeTeam, awayTeam, homeTeamScore, awayTeamScore, time, dateMatch, t1.tla as hname, t2.tla as aname, t1.logo as hlogo, t2.logo as alogo FROM matches
+        matches = db.execute('''SELECT matchday, matches.competition, homeTeam, awayTeam, homeTeamScore, awayTeamScore, time, dateMatch, t1.tla as hname, t2.tla as aname, t1.logo as hlogo, t2.logo as alogo FROM matches
         INNER JOIN team AS t1 ON homeTeam = t1.id
         INNER JOIN team AS t2 ON awayTeam = t2.id
         WHERE matchday=? and competition=?''',
@@ -100,7 +100,7 @@ def get_favourite_team(user_id):
         SELECT matchday, homeTeam, awayTeam, homeTeamScore, awayTeamScore, time, dateMatch, t1.tla as hname, t2.tla as aname, t1.logo as hlogo, t2.logo as alogo FROM matches
         INNER JOIN team AS t1 ON homeTeam = t1.id
         INNER JOIN team AS t2 ON awayTeam = t2.id
-        INNER JOIN competition ON matches.competition = competition.id
+        INNER JOIN competition ON competition = competition.id
         WHERE matchday=currentMatchDay AND ( 
             homeTeam IN (SELECT team_id FROM user_team WHERE user_id=?) OR 
             awayTeam IN (SELECT team_id FROM user_team WHERE user_id=?)
@@ -112,3 +112,11 @@ def get_live_result():
 
     return live
 
+def get_user(user_id):
+    db = get_db()
+    return db.execute('SELECT * FROM user WHERE id=?', (user_id,)).fetchone()
+
+def delete_User(user_id):
+    db = get_db()
+    db.execute('DELETE FROM user WHERE id=?', (user_id, ))
+    db.commit()
