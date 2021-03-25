@@ -28,11 +28,10 @@ def get_competitions():
 def get_matchday(competition, matchday):
     db = get_db()
 
-    cur = db.cursor()
-    currentMatchDay = cur.execute(
-        'SELECT currentMatchDay from competition WHERE id=?', (competition,)).fetchone()['currentMatchDay']
+    currentMatchDay = db.execute('SELECT currentMatchDay from competition WHERE id=?', (competition,)).fetchone()['currentMatchDay']
 
-    if int(matchday) == int(currentMatchDay):
+    notFinished = db.execute("SELECT count(id) FROM matches WHERE matchday=? AND status!='FINISHED' and competition=?",(currentMatchDay,competition,)).fetchone()[0]
+    if int(matchday) == int(currentMatchDay) and notFinished>0:
         update_results_from_api(competition, matchday)
 
     matches = db.execute('''SELECT * FROM matches
@@ -61,8 +60,7 @@ def get_matchday(competition, matchday):
 def get_current_league_matchday(competition):
     get_current_league_matchday_from_api()
     db = get_db()
-    cmd = db.execute(
-        'SELECT currentMatchDay FROM competition WHERE id=?', (competition,)).fetchone()[0]
+    cmd = db.execute('SELECT currentMatchDay FROM competition WHERE id=?', (competition,)).fetchone()[0]
     return cmd
 
 def get_team_info(team):

@@ -32,7 +32,7 @@ def selected_league(competition,matchday):
     data = get_matchday(competition, matchday)
     cmd = get_current_league_matchday(competition)
     
-    return render_template('/site/result.html', data = data, cmd = cmd, md = int(matchday), competition = int(competition))
+    return render_template('/site/result.html', data = data, cmd = cmd, md = int(matchday), competition = competition)
 
 @bp.route('/team/<competition>/<team>')
 @login_required
@@ -40,27 +40,27 @@ def team(competition, team):
     user_id = session.get('user_id')
     data = get_team_info(team)
     check_fav = check_alreadyfav(user_id, team)
-    cmd = get_current_league_matchday(competition)
+    cmd = get_current_league_matchday(int(competition))
 
-    return render_template('/site/team.html', team = data, check_fav = check_fav, competition = competition, cmd = cmd)
+    return render_template('/site/team.html', team = data, check_fav = check_fav, competition = int(competition), cmd = cmd)
 
-@bp.route('/team/<team>/addFavourites')
+@bp.route('/team/<competition>/<team>/addFavourites')
 @login_required
-def addfavourites(team):
+def addfavourites(competition, team):
     user_id = session.get('user_id')
     add_to_favourites(user_id, team)
 
     data = get_team_info(team)
-    return redirect(url_for('site.team', team=team))
+    return redirect(url_for('site.team', competition=competition, team=team))
 
-@bp.route('/team/<team>/removeFavourites')
+@bp.route('/team/<competition>/<team>/removeFavourites')
 @login_required
-def removeFavourites(team):
+def removeFavourites(competition, team):
     user_id = session.get('user_id')
     remove_to_favourites(user_id, team)
 
     data = get_team_info(team)
-    return redirect(url_for('site.team', team=team))
+    return redirect(url_for('site.team', competition=competition, team=team))
 
 @bp.route('/team/favourites')
 @login_required
