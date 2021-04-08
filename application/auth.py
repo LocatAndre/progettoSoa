@@ -144,11 +144,10 @@ def qrcode():
     if user is None:
         abort(404)
 
-    # for added security, remove username from session
     del session['mail']
 
-    # render qrcode for FreeTOTP
-    url = pyqrcode.create('otpauth://totp/2FA:{0}?secret={1}&issuer=2FA-Holligans'.format(user['username'], user['otpSecret']))
+    # render qrcode
+    url = pyqrcode.create('otpauth://totp/:{0}?secret={1}&issuer=Holligans'.format(user['username'], user['otpSecret']))
     stream = BytesIO()
     url.svg(stream, scale=3)
     return stream.getvalue(), 200, {
