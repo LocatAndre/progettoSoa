@@ -1,4 +1,9 @@
 import functools
+import onetimepass
+import pyqrcode
+from io import BytesIO
+import os
+import base64
 
 from flask import (
     Blueprint,
@@ -8,7 +13,8 @@ from flask import (
     render_template,
     request,
     session,
-    url_for
+    url_for,
+    abort
 )
 
 from werkzeug.security import (
@@ -30,6 +36,7 @@ def login():
 def checkuser():
     email = request.form.get('email')
     password = request.form.get('password')
+    otp = request.form.get('otp')
 
     db = get_db()
     error = None
@@ -40,6 +47,8 @@ def checkuser():
         error = 'Mail non presente'
     elif not check_password_hash(user['password'], password):
         error = 'Pasword errata'
+    elif not onetimepass.valid_totp(otp, user['otpSecret']):
+        error = 'OTP errato' + otp
 
     if error is None:
         # pulisce le sessioni precednti
@@ -75,6 +84,9 @@ def checkregister():
     password2 = request.form['password2']
     email = request.form['email']
 
+    # Segreto casuale per OTP
+    otpSecret = base64.b32encode(os.urandom(10)).decode('utf-8')
+
     db = get_db()
     error = None
 
@@ -89,11 +101,12 @@ def checkregister():
         error = 'Password troppo fragile'
 
     if error is None:
-        db.execute('INSERT INTO user (email, username, password) VALUES (?, ?, ?)',
-                   (email, username, generate_password_hash(password1))
+        db.execute('INSERT INTO user (email, username, password, otpSecret) VALUES (?, ?, ?, ?)',
+                   (email, username, generate_password_hash(password1), otpSecret)
                    )
         db.commit()
-        return redirect(url_for('auth.login'))
+        session['mail'] = email
+        return redirect(url_for('auth.two_factor_setup'))
 
     flash(error)
     return redirect(url_for('auth.register'))
@@ -103,6 +116,46 @@ def checkregister():
 def register():
     return render_template('site/register.html')
 
+@bp.route('/twofactor')
+def two_factor_setup():
+    if 'mail' not in session:
+        return redirect(url_for('site.index'))
+
+    db = get_db()
+    user = db.execute('SELECT * FROM user WHERE  email= ?',
+                      (session['mail'],)).fetchone()
+    if user is None:
+        return redirect(url_for('site.index'))
+
+    return render_template('site/2fa.html'), 200, {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'}
+
+@bp.route('/qrcode')
+def qrcode():
+
+    if 'mail' not in session:
+        abort(404)
+
+    db = get_db()
+    user = db.execute('SELECT * FROM user WHERE email = ?',
+                      (session['mail'],)).fetchone()
+    if user is None:
+        abort(404)
+
+    # for added security, remove username from session
+    del session['mail']
+
+    # render qrcode for FreeTOTP
+    url = pyqrcode.create('otpauth://totp/2FA:{0}?secret={1}&issuer=2FA-Holligans'.format(user['username'], user['otpSecret']))
+    stream = BytesIO()
+    url.svg(stream, scale=3)
+    return stream.getvalue(), 200, {
+        'Content-Type': 'image/svg+xml',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'}
 
 def login_required(view):
     @functools.wraps(view)

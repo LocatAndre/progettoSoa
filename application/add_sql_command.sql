@@ -1,2 +1,17 @@
-DELETE FROM matches WHERE competition = 2001 AND competition = 2000 AND competition = 2018;
-DELETE FROM competition WHERE id = 2000 and id = 2001 and id = 2018;
+DROP TABLE if EXISTS user;
+DROP TABLE if EXISTS user_team;
+
+CREATE TABLE user (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    username text NOT NULL,
+    email text NOT NULL,
+    password NOT NULL,
+    otpSecret text NOT NULL
+);
+
+CREATE TABLE user_team (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    user_id integer NOT NULL,
+    team_id integer NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES user(id)
+);

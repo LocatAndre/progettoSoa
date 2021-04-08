@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero is-primary is-fullheight">
+    <div class="hero-body">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-5-tablet is-4-desktop is-3-widescreen">
+                    <div class="card">
+                        <div class="card-image">
+                            <figure class="image">
+                                <img id="qrcode" src="{{ url_for('auth.qrcode') }}">
+                            </figure>
+                        </div>
+                        <div class="card-content">
+                            <div class="media">
+                                <div class="media-content">
+                                    <p class="is-4">Autenticazione a 2 fattori</p>
+                                </div>
+                            </div>
+                            <div class="content">
+                                Scansiona il codice QR in una applicazione compatibile (es. Google Authenticator)
+                                <br>
+                                <a class="button is-primary" href="{{ url_for('auth.login') }}">Login</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+{% endblock %}

@@ -8,7 +8,8 @@ CREATE TABLE user (
     id integer PRIMARY KEY AUTOINCREMENT,
     username text NOT NULL,
     email text NOT NULL,
-    password NOT NULL
+    password NOT NULL,
+    otpSecret text NOT NULL
 );
 
 CREATE TABLE user_team (

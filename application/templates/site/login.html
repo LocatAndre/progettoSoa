@@ -26,6 +26,15 @@
                             </div>
                         </div>
                         <div class="field">
+                            <label for="" class="label">OTP</label>
+                            <div class="control has-icons-left">
+                                <input name="otp" type="text" placeholder="Insert OTP" class="input" required>
+                                <span class="icon is-small is-left">
+                                    <i class="fa fa-lock"></i>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="field">
                             <input type="submit" class="button is-success" value="Login">
                         </div>
                         <a href="{{url_for('auth.register')}}" class="button is-text">Non registrato? Registrati!</a>
