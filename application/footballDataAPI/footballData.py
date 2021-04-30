@@ -58,10 +58,12 @@ def get_matchday(competition, matchday):
 
 
 def get_current_league_matchday(competition):
-    get_current_league_matchday_from_api()
     db = get_db()
     cmd = db.execute('SELECT currentMatchDay FROM competition WHERE id=?', (competition,)).fetchone()[0]
     return cmd
+
+def get_all_current_league_matchday():
+    get_current_league_matchday_from_api()
 
 def get_team_info(team):
     db = get_db()

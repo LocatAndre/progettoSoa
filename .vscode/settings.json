@@ -1,11 +1,11 @@
 {
-    "python.pythonPath": "env/bin/python",
+    "python.pythonPath": "env/bin/python3",
     "sqltools.connections": [
         {
             "previewLimit": 50,
             "driver": "SQLite",
-            "database": "${workspaceFolder:progettoSoa}/instance/db.sqlite",
-            "name": "database"
+            "name": "SOA",
+            "database": "${workspaceFolder:progettoSoa}/instance/db.sqlite"
         }
     ],
     "sqltools.useNodeRuntime": true
