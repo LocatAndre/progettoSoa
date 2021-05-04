@@ -20,8 +20,8 @@ app.set('views', 'client');
 
 // authorization server information
 var authServer = {
-	authorizationEndpoint: 'http://localhost:9001/authorize',
-	tokenEndpoint: 'http://localhost:9001/token',
+	authorizationEndpoint: 'https://localhost:9001/authorize',
+	tokenEndpoint: 'https://localhost:9001/token',
 	revocationEndpoint: 'http://localhost:9001/revoke',
 	registrationEndpoint: 'http://localhost:9001/register',
 	userInfoEndpoint: 'http://localhost:9001/userinfo'

@@ -1,4 +1,6 @@
 var express = require("express");
+const https = require('https');
+const fs = require('fs');
 var url = require("url");
 var bodyParser = require('body-parser');
 var randomstring = require("randomstring");
@@ -10,8 +12,12 @@ var __ = require('underscore');
 __.string = require('underscore.string');
 
 
+
 var jose = require('jsrsasign'); //per la firma del token
 const NodeRSA = require('node-rsa'); //per cifratura token
+
+const bcrypt = require('bcrypt'); //per hashing password
+const saltRounds = 10; //indica il tempo necessario per calcolare l'hash (più è alto più è difficile fare brute force)
 
 var app = express();
 
@@ -141,19 +147,32 @@ app.post("/clientRegistration", function (req, res) {
 
 app.post("/userRegistration", function (req, res) {
 
+	//res.render('register.html')
+
 	var email = req.body.email;
-	var password = req.body.password1;
+	var password = req.body.password;
 
 	console.log(email, password)
 
-	var newdb = new sqlite3.Database('myNewDb.db');
 
-	newdb.run('INSERT INTO UserInformation(username,password) VALUES(?,?)', [email, password], (err) => {
-		if (err) {
-			return console.log('tupla non inserita');
-		}
 
-		console.log('le informazioni dell\'utente sono state inserite');
+	//eseguiamo l'hash della pwd prima di inserirla in UserInformation
+	bcrypt.hash(yourPassword, saltRounds, (err, hash) => {
+  		
+  		console.log('l\'hash è: '+hash)
+ 		myhash = hash
+
+		var newdb = new sqlite3.Database('myNewDb.db');
+
+		newdb.run('INSERT INTO UserInformation(username,password) VALUES(?,?)', [email, myhash], (err) => {
+
+			if (err) {
+				return console.log('tupla non inserita');
+			}
+
+			console.log('le informazioni dell\'utente sono state inserite');
+		});
+
 	});
 
 	return res.render('login');
@@ -178,6 +197,9 @@ app.post("/authorize", function (req, res) {
 	var requri = req.query.redirect_uri;
 	var reqscope = req.query.scope;
 
+	var email = req.body.email;
+	var password = req.body.password;
+
 	console.log('il client id della richiesta è: ' + reqclient);
 	console.log('il redirect uri della richiesta è: ' + requri);
 	console.log('lo scope nella richiesta è: ' + reqscope);
@@ -189,16 +211,7 @@ app.post("/authorize", function (req, res) {
 			return console.log('errore nella query');
 		}
 
-		if (row.clientId != reqclient) {
-			console.log('il client in tabella è: %s', row.clientId)
-			console.log('client %s sconosciuto', reqclient);
-			res.render('error', { error: 'client sconosciuto' });
-			return;
-		}
-
-		if (row.redirectUri != requri) {
-			console.log('\'uri in tabella è: %s', row.redirectUri)
-			console.log('uri %s sconosciuto', requri);
+		if (row.clientId != reqclient || row.redirectUri != requri) {
 			res.render('error', { error: 'client sconosciuto' });
 			return;
 		}
@@ -218,26 +231,42 @@ app.post("/authorize", function (req, res) {
 			return;
 		}
 
-		var reqid = randomstring.generate(8);
-
-		var responseType = req.query.response_type;
-		var stato = req.query.state;
-
-
-		newdb.run('INSERT INTO Request(reqId,clientId,responseType,redirectUri,scope,state) VALUES(?,?,?,?,?,?)', [reqid, reqclient, responseType, requri, reqscope, stato], (err) => {
+		newdb.get('SELECT username, password FROM UserInformation WHERE username=?', [email], (err, row) => {
 			if (err) {
-				return console.log('tupla non inserita');
+				return console.log('errore nella query');
 			}
 
-			console.log('la richiesta è stata inserita');
+			bcrypt.compare(password, row.password, function(err, res) {
+	   			
+	   			if (row.username != email || res != true){
+	   				res.render('error', { error: 'utente sconosciuto' });
+					return;
+	  			}
 
+			});
+
+			var reqid = randomstring.generate(8);
+
+			var responseType = req.query.response_type;
+			var stato = req.query.state;
+
+
+			newdb.run('INSERT INTO Request(reqId,clientId,responseType,redirectUri,scope,state) VALUES(?,?,?,?,?,?)', [reqid, reqclient, responseType, requri, reqscope, stato], (err) => {
+				if (err) {
+					return console.log('tupla non inserita');
+				}
+
+				console.log('la richiesta è stata inserita');
+
+			});
+
+			res.render('approve', { client: reqclient, reqid: reqid, scope: rscope });
+
+			return;
 		});
-
-		res.render('approve', { client: reqclient, reqid: reqid, scope: rscope });
-
-		return;
 	});
 });
+
 
 
 
@@ -472,20 +501,15 @@ app.post("/token", function (req, res) {
 				al client insieme al token ovviamente). L'expiration_date si riferisce solo
 				all'access_token, non al refresh_token, che di norma dura di più (quando scade
 				il client deve fare il procedimento da capo ottenendo l'authorization code). 
-				I token possono anche essere revocati, per ciclo vitale token vedi capitolo 11
-
-				Nel nostro caso il token è una stringa casuale senza alcuna struttura interna. 
-				Poi però dovrò trasformarlo in un token JWT (vedo capitolo 11)*/
-
-					//var access_token = randomstring.generate();
+				I token possono anche essere revocati, per ciclo vitale token vedi capitolo 11*/
 
 					//creo token JWT
 					var header = { 'typ': 'JWT', 'alg': rsaKey.alg, 'kid': rsaKey.kid }; //kid è l'id della chiave
 
 					var payload = {
-						iss: 'http://localhost:9001/', //token issuer
+						iss: 'https://localhost:9001/', //token issuer
 						sub: clientCred, //utente a cui si riferisce il token
-						aud: 'http://localhost:9002/', //token audience, cioè chi dovrebbe processare il token
+						aud: 'https://localhost:8100/', //token audience, cioè chi dovrebbe processare il token
 						iat: Math.floor(Date.now() / 1000), //momento di emissione del token
 						exp: Math.floor(Date.now() / 1000) + (5 * 60), //scadenza del token (scade in 5 minuti)
 						jti: randomstring.generate(8) //identificativo del token 
@@ -502,8 +526,26 @@ app.post("/token", function (req, res) {
 
 					/*creiamo anche un refresh token, che sarà utile al client per ottenere un nuovo
 					access token senza dover rifare tutto il procedimento coinvolgengo l'utente*/
-					var refresh_token = randomstring.generate();
+
+					//creo refresh token JWT
+					var header = { 'typ': 'JWT', 'alg': rsaKey.alg, 'kid': rsaKey.kid }; //kid è l'id della chiave
+
+					var payload = {
+						iss: 'https://localhost:9001/', //token issuer
+						sub: clientCred, //utente a cui si riferisce il token
+						aud: 'https://localhost:8100/', //token audience, cioè chi dovrebbe processare il token
+						iat: Math.floor(Date.now() / 1000), //momento di emissione del token
+						exp: Math.floor(Date.now() / 1000) + (30 * 60), //scadenza del token (scade in 30 minuti)
+						jti: randomstring.generate(8) //identificativo del token 
+					};
+
+					var refresh_token = jose.jws.JWS.sign(header.alg, JSON.stringify(header), JSON.stringify(payload), privateKeyFirma);
+
+					console.log('il refresh token non cifrato: ' + refresh_token);
+
 					refresh_token = publicKeyEnc.encrypt(refresh_token, 'base64'); //cifro il refresh_token
+
+
 
 					newdb.run('INSERT INTO Token(clientId,accessToken) VALUES(?,?)', [client, access_token], (err) => {
 						if (err) {
@@ -689,13 +731,23 @@ var getScopesFromForm = function (body) {
 
 app.use('/', express.static('authorizationServer'));
 
+var server = https.createServer({
+  key: fs.readFileSync('server.key'),
+  cert: fs.readFileSync('server.crt')
+}, app)
 
-var server = app.listen(9001, 'localhost', function () {
+server.listen(9001, function () {
+	var host = 'localhost'
+	var port = server.address().port;
+  	console.log('OAuth Authorization Server is listening at https://%s:%s', host, port)
+})
+
+/*var server = app.listen(9001, 'localhost', function () {
 	var host = server.address().address;
 	var port = server.address().port;
 
 	console.log('OAuth Authorization Server is listening at http://%s:%s', host, port);
-});
+});*/
 
 
 newdb.close();
