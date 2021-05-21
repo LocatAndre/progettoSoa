@@ -1,0 +1,31 @@
+{% extends "./base.html" %}
+
+{% block content %}
+    <section class="hero is-danger is-fullheight">
+        <div class="hero-body">
+            <div class="container">
+                <div class="columns is-centered">
+                    <div class="column is-5-tablet is-4-desktop is-3-widescreen">
+                        <form action="/auth/checkApprove" method="post">
+                            <div class="field">
+                                Consenti gli accessi, controlla i parametri
+                                <ul>
+                                    <li>Scope: {{ scope }}</li>
+                                    <li>Redirect_uri: {{ redirect_uri }}</li>
+                                    <li>Request id: {{ reqId }}</li>
+                                </ul>
+                                <input hidden type="text" name="reqId" id="reqId" value="{{ reqId }}">
+                                <input hidden type="text" name="scope" id="scope" value="{{ scope }}">
+                                <input hidden type="text" name="redirect_uri" id="redirect_uri"
+                                       value="{{ redirect_uri }}">
+
+                                <input class="button is-success" type="submit" value="Approve">
+                                <a class="button is-danger is-outlined" href="{{ url_for('auth.logout') }}">Esci</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,33 @@
+<div class="card">
+    <div class="card-content">
+      <div class="media">
+        <div class="media-content is-6">
+          <div class="columns is-mobile">
+            <div class="column has-text-centered">
+              <figure class="image is-64x64 is-inline-block">
+                <a href="/team/{{match['competition']}}/{{match['homeTeam']}}">
+                  <img src="{{match['hlogo']}}" alt="Placeholder image">
+                </a>
+              </figure><br>
+              <strong>{{match['hname']}}</strong>
+            </div>
+            <div class="column">
+              <p class="has-text-centered res"><strong>{{match['homeTeamScore']}} -
+                  {{match['awayTeamScore']}}</strong></p>
+              <p class="has-text-centered is-size-7	">{{match['time']}}</p>
+              <p class="has-text-centered is-size-7	">
+                {{match['dateMatch']}}</p>
+            </div>
+            <div class="column has-text-centered">
+              <figure class="image is-64x64 is-inline-block">
+                <a href="/team/{{match['competition']}}/{{match['awayTeam']}}">
+                  <img src="{{match['alogo']}}" alt="Placeholder image">
+                </a>
+              </figure><br>
+              <strong>{{match['aname']}}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

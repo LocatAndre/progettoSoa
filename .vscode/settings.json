@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "env/bin/python3",
+    "python.pythonPath": "/home/andrea/github/progettoSoa/env/bin/python3",
     "sqltools.connections": [
         {
             "previewLimit": 50,

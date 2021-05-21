@@ -1,0 +1,42 @@
+.res{
+    padding-bottom: 20px;
+    padding-top: 20px;
+
+}
+.card{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.is-horizontal-center {
+  justify-content: center;
+}
+
+.has-image-centered {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+.button.is-rounded {
+    border-radius: 290486px;
+}
+
+.hero.is-info {
+    background: linear-gradient(
+        rgba(0, 0, 0, 0.5),
+        rgba(0, 0, 0, 0.5)
+      ), url('../image/homepage.png') no-repeat center center fixed;
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
+  }
+  .hero .nav, .hero.is-success .nav {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+  }
+  .hero .subtitle {
+    padding: 3rem 0;
+    line-height: 1.5;
+  }

@@ -132,6 +132,11 @@ def two_factor_setup():
         'Pragma': 'no-cache',
         'Expires': '0'}
 
+@bp.route('/controlloToken', methods=['POST', 'GET'])
+def controlloToken():
+    print('Eccomi')
+    return 'Eccomi'
+
 @bp.route('/qrcode')
 def qrcode():
 

@@ -6,39 +6,48 @@
         <div class="container">
             <div class="columns is-centered">
                 <div class="column is-5-tablet is-4-desktop is-3-widescreen">
-                    <form action="login/checkuser" method="POST" class="box">
+                    <form action="/user/updateUser" method="POST" class="box">
                         <div class="field">
                             <label for="" class="label">Email</label>
                             <div class="control has-icons-left">
-                                <input name="email" type="email" placeholder="e.g. pippo@gmail.com" class="input" required>
+                                <input name="username" type="email" value="{{user['username']}}" class="input">
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-envelope"></i>
                                 </span>
                             </div>
                         </div>
                         <div class="field">
-                            <label for="" class="label">Password</label>
+                            <label for="" class="label">Nuova Password</label>
                             <div class="control has-icons-left">
-                                <input name="password" type="password" placeholder="*******" class="input" required>
+                                <input name="password1" type="password" placeholder="*******" class="input">
+                                <span class="icon is-small is-left">
+                                    <i class="fa fa-lock"></i>
+                                </span>
+                                <p class="help has-text-grey">La password deve avere almeno 8 caratteri.</p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="" class="label">Retype Password</label>
+                            <div class="control has-icons-left">
+                                <input name="password2" type="password" placeholder="*******" class="input">
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-lock"></i>
                                 </span>
                             </div>
                         </div>
                         <div class="field">
-                            <label for="" class="label">OTP</label>
+                            <label for="" class="label">Vecchia password</label>
                             <div class="control has-icons-left">
-                                <input name="otp" type="text" placeholder="Insert OTP" class="input" required>
+                                <input name="oldPassword" type="password" placeholder="*******" class="input">
                                 <span class="icon is-small is-left">
                                     <i class="fa fa-lock"></i>
                                 </span>
                             </div>
                         </div>
                         <div class="field">
-                            <input type="submit" class="button is-success" value="Login">
-                            <a class="button is-success" href="http://127.0.0.1:9001/auth/login?redirect_uri=http://127.0.0.1:8100/rURI&scope=hooligans&response_type=code">Login server Giuls</a>
+                        <input type="submit" class="button is-success" value="Aggiorna">
+                        <a class="button is-danger is-outlined" href="/user/delete">Elimina utente</a>
                         </div>
-                        <a href="{{url_for('auth.register')}}" class="button is-text">Non registrato? Registrati!</a>
                     </form>
                     {% for message in get_flashed_messages() %}
                     <article class="message is-danger">

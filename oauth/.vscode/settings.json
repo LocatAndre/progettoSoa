@@ -1,0 +1,12 @@
+{
+    "python.pythonPath": "env/bin/python",
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "oauth server",
+            "database": "${workspaceFolder:oauth}/instance/db.sqlite"
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}
