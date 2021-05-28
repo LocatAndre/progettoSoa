@@ -15,7 +15,6 @@ class Config:
     SECRET_KEY = environ.get('SECRET_KEY')
     STATIC_FOLDER = 'static'
     TEMPLATES_FOLDER = 'templates'
-    API_KEY = environ.get('API_KEY')
 
 class ProdConfig(Config):
     FLASK_ENV = 'production'

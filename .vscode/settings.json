@@ -1,11 +1,17 @@
 {
-    "python.pythonPath": "/home/andrea/github/progettoSoa/env/bin/python3",
+    "python.pythonPath": "oauth/env/bin/activate",
     "sqltools.connections": [
         {
             "previewLimit": 50,
             "driver": "SQLite",
             "name": "SOA",
             "database": "${workspaceFolder:progettoSoa}/instance/db.sqlite"
+        },
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "database": "${workspaceFolder:progettoSoa}/oauth/instance/db.sqlite",
+            "name": "oauthGithub"
         }
     ],
     "sqltools.useNodeRuntime": true

@@ -45,8 +45,8 @@ CREATE TABLE IF NOT EXISTS Token(
     FOREIGN KEY (clientId) REFERENCES ClientInformation (clientId)
 );
 CREATE TABLE IF NOT EXISTS RefreshToken(
-    clientId string,
+    clientSecret string,
     refreshToken string,
-    PRIMARY KEY(clientId, refreshToken),
-    FOREIGN KEY (clientId) REFERENCES ClientInformation (clientId)
+    PRIMARY KEY(clientSecret),
+    FOREIGN KEY (clientSecret) REFERENCES ClientInformation (clientSecret)
 );

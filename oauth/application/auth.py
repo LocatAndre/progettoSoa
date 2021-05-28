@@ -39,11 +39,19 @@ def login():
 @bp.route('/rURI')
 def rURI():
     authCode = request.args.get('authCode')
-    clientSecret = request.cookies.get('clientSecret')
-    clientId = request.cookies.get('clientId')
-    grant_type = 'authorization_code'
+    
+    if authCode != None:
+        clientSecret = request.cookies.get('clientSecret')
+        clientId = request.cookies.get('clientId')
+        grant_type = 'authorization_code'
+        
+        return redirect(url_for('auth.generate_token', authCode=authCode, clientSecret=clientSecret, clientId=clientId, grant_type=grant_type))
+    else:
+        rt = request.args.get('rt')
+        at = request.args.get('at')
+        
+        return 'Token inviati a resource server'
 
-    return redirect(url_for('auth.generate_token', authCode=authCode, clientSecret=clientSecret, clientId=clientId, grant_type=grant_type))
 
 
 @bp.route('/generateToken')
@@ -57,31 +65,59 @@ def generate_token():
 
     check_information = db.execute(
         'SELECT authCode, clientSecret FROM ClientInformation INNER JOIN Code ON Code.clientId = ClientInformation.clientId WHERE clientInformation.clientId=?', (clientId,)).fetchone()
+    import datetime
+    import jwt
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    
+    if grant_type == 'authorization_code':
+        if authCode == check_information['authCode'] and check_password_hash(clientSecret, check_information['clientSecret']):
+            payload_AT = {
+              'iss':    'http://localhost:9001/',
+              'sub':    session.get('user_id'),
+              'aud':    'http://localhost:8100/',
+              'iat':    datetime.datetime.now(),
+              'exp':    datetime.datetime.now() + datetime.timedelta(minutes=30),
+              'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
+            }
+            payload_RT = {
+                'iss':    'http://localhost:9001/',
+                'sub':    session.get('user_id'),
+                'aud':    'http://localhost:8100/',
+                'iat':    datetime.datetime.now(),
+                'exp':    datetime.datetime.now() + datetime.timedelta(minutes=120),
+                'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
+            }
+            token_jwt_AT = None
+            token_jwt_RT = None
+            with open(current_app.config['PEM_KEY'], 'r') as private_key:  
+                token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256", headers={'typ': 'JWT'})
+            with open(current_app.config['PEM_KEY'], 'r') as private_key:  
+                token_jwt_RT = jwt.encode(payload_RT, private_key.read(), algorithm="RS256", headers={'typ': 'JWT'})
+            db.execute('INSERT INTO RefreshToken(clientSecret, refreshToken) VALUES (?,?)', (clientSecret, token_jwt_RT))
+            db.commit()
+            db.execute('DELETE FROM Code WHERE authCode=? AND clientId=?', (authCode, clientId))
+            db.commit()
+            return redirect(url_for('auth.rURI', rt = token_jwt_RT, at = token_jwt_AT))
 
-    with open(current_app.config['PEM_KEY'], 'r') as private_key:
-        if grant_type == 'authorization_code':
-            if authCode == check_information['authCode'] and clientSecret == check_information['clientSecret']:
-                import jwt
-                import datetime
-                from cryptography.hazmat.primitives import serialization
-                from cryptography.hazmat.backends import default_backend
-                payload = {
-                  'iss':    'http://localhost:9001/',
-                  'sub':    session.get('user_id'),
-                  'aud':    'http://localhost:8100/',
-                  'iat':    datetime.datetime.now(),
-                  'exp':    datetime.datetime.now() + datetime.timedelta(minutes=90),
-                  'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
-                }
+    elif grant_type == 'refresh_token':
+            payload_AT = {
+              'iss':    'http://localhost:9001/',
+              'sub':    session.get('user_id'),
+              'aud':    'http://localhost:8100/',
+              'iat':    datetime.datetime.now(),
+              'exp':    datetime.datetime.now() + datetime.timedelta(minutes=30),
+              'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
+            }
+            token_jwt_AT = None
+            with open(current_app.config['PEM_KEY'], 'r') as private_key:  
+                token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256")
+            
+            token_jwt_RT = db.execute('SELECT refreshToken FROM RefreshToken WHERE clientSecret=?', (clientSecret,)).fetchone()['refreshToken']
 
-                token_jwt = jwt.encode(payload, private_key.read(), algorithm="RS256")
-
-                jwt.decode(token_jwt,options={"verify_signature": False})
-                return jwt.decode(token_jwt,options={"verify_signature": False})
-        elif grant_type == 'refresh_token':
-            return 'refresh'
-        else:
-            return 'Token non supportato'
+            return redirect(url_for(auth.rURI, rt = token_jwt_RT, at = token_jwt_AT))
+    else:
+        return 'Token non supportato'
         
 
 @bp.route('/approve')
@@ -119,6 +155,9 @@ def checkApprove():
                     authCode = base64.b32encode(os.urandom(10)).decode('utf-8')
                     db.execute('INSERT INTO Code(authCode, clientId, scope) VALUES(?,?,?)',
                                (authCode, reqId_db['clientId'], scope))
+                    db.commit()
+
+                    db.execute('DELETE FROM Request WHERE reqId=?', (reqId_db['reqId'],))
                     db.commit()
                     return redirect(url_for('auth.rURI', authCode=authCode))
                 else:
@@ -229,7 +268,7 @@ def checkregister():
         resp = make_response(render_template('site/login.html'))
         resp.set_cookie('clientId', clientId, expires=datetime.datetime.now(
         ) + datetime.timedelta(days=90))
-        resp.set_cookie('clientSecret', clientSecret,
+        resp.set_cookie('clientSecret', generate_password_hash(clientSecret),
                         expires=datetime.datetime.now() + datetime.timedelta(days=90))
         return resp
 
