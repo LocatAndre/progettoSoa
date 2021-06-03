@@ -210,7 +210,7 @@ def token_endpoint():
     with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
         rt_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})
     with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-        at_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})
+        at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})
 
     return('Entrambi token decodificati')
 
