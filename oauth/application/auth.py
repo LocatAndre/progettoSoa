@@ -122,7 +122,7 @@ def generate_token():
 			            )
             public_key = private_key.public_key()
 
-            # Divido il token per ogni .
+            # Divido il token per ogni . (header, payload e sign)
             splitted_at = token_jwt_AT.split('.')
             splitted_at[1] = public_key.encrypt(
 		            bytes(str(splitted_at[1]), 'utf-8'),
@@ -142,20 +142,23 @@ def generate_token():
 			    )
 	        )
             
-            splitted_at[0] = bytes(splitted_rt[0], 'utf-8')
-            splitted_at[2] = bytes(splitted_rt[2], 'utf-8')
+            final_token_at = {
+                'header':   splitted_at[0],
+                'payload':  base64.urlsafe_b64encode(splitted_at[1]),
+                'sign':     splitted_at[2]
+            }
 
-            splitted_rt[0] = bytes(splitted_rt[0], 'utf-8')
-            splitted_rt[2] = bytes(splitted_rt[2], 'utf-8')
-
-            print('qui')
-            print(splitted_rt[1])
+            final_token_rt = {
+                'header':   splitted_rt[0],
+                'payload':  base64.urlsafe_b64encode(splitted_rt[1]),
+                'sign':     splitted_rt[2]
+            }
 
             db.execute('INSERT INTO RefreshToken(clientSecret, refreshToken) VALUES (?,?)', (clientSecret, token_jwt_RT))
             db.commit()
             db.execute('DELETE FROM Code WHERE authCode=? AND clientId=?', (authCode, clientId))
             db.commit()
-            return redirect(url_for('auth.rURI', rt = [base64.urlsafe_b64encode(i) for i in splitted_rt], at = [base64.urlsafe_b64encode(i) for i in splitted_at]))
+            return redirect(url_for('auth.rURI', rt = final_token_rt, at = final_token_at))
 
         elif grant_type == 'refresh_token':
             payload_AT = {
@@ -167,7 +170,7 @@ def generate_token():
               'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
             }
             token_jwt_AT = None
-            with open(current_app.config['PEM_KEY'], 'r') as private_key:  
+            with open('/home/andrea/github/progettoSoa/oauth/cert/private_sign.pem', 'r') as private_key:  
                 token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256")
             
             token_jwt_RT = db.execute('SELECT refreshToken FROM RefreshToken WHERE clientSecret=?', (clientSecret,)).fetchone()['refreshToken']

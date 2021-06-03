@@ -1,5 +1,4 @@
 {
-    "python.pythonPath": "oauth/env/bin/activate",
     "sqltools.connections": [
         {
             "previewLimit": 50,

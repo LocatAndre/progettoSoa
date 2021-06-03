@@ -180,11 +180,11 @@ def token_endpoint():
 	        password = None,
 	        backend = default_backend()
             )
+    from ast import literal_eval
+    rt = literal_eval(rt)
 
-    print(rt)
-
-    a = private_key.decrypt(
-	    base64.urlsafe_b64decode(rt[1]),
+    rt['payload'] = private_key.decrypt(
+	    base64.urlsafe_b64decode(rt['payload']),
 	    padding.OAEP(
 		    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
 			    algorithm = hashes.SHA1(),
@@ -192,12 +192,14 @@ def token_endpoint():
 		)
 	)
 
+    token_JWT_unencoded = '{}.{}.{}'.format(rt['header'],rt['payload'].decode("utf-8"),rt['sign'])
+
+    print(token_JWT_unencoded)
+
     import jwt
     #Verifico la firma
-    #with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-    #    return jwt.decode(token_JWT_unencoded, public_key.read(), algorithms=["RS256"])   
-
-    return a
+    with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
+        return jwt.decode(token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})   
 
 
 def login_required(view):
