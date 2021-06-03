@@ -9,7 +9,7 @@ load_dotenv(path.join(basedir, '.env'))
 class Config:
     """Base config."""
     DATABASE = path.join(path.realpath(path.dirname(__file__)), 'instance/db.sqlite')
-    PEM_KEY=path.join(path.realpath(path.dirname(__file__)), 'cert/server.pem')
+    PEM_KEY=path.join(path.realpath(path.dirname(__file__)), 'cert/public.pub')
     CERTIFICATE_PATH= path.join(path.realpath(path.dirname(__file__)), 'cert/server.crt')
     SERVER_KEY=path.join(path.realpath(path.dirname(__file__)), 'cert/server.key')
     SECRET_KEY = environ.get('SECRET_KEY')

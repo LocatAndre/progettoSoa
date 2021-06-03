@@ -161,6 +161,45 @@ def qrcode():
         'Pragma': 'no-cache',
         'Expires': '0'}
 
+@bp.route('/token_endpoint')
+def token_endpoint():
+    import url64
+
+    rt = request.args.get('rt')
+    at = request.args.get('at')
+
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+    
+    #Decifro il payload 
+    with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
+	    private_key = serialization.load_pem_private_key(
+	        key_file.read(),
+	        password = None,
+	        backend = default_backend()
+            )
+
+    print(rt)
+
+    a = private_key.decrypt(
+	    base64.urlsafe_b64decode(rt[1]),
+	    padding.OAEP(
+		    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
+			    algorithm = hashes.SHA1(),
+			    label = None
+		)
+	)
+
+    import jwt
+    #Verifico la firma
+    #with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
+    #    return jwt.decode(token_JWT_unencoded, public_key.read(), algorithms=["RS256"])   
+
+    return a
+
+
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):

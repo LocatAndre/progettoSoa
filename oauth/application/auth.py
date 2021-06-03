@@ -50,7 +50,7 @@ def rURI():
         rt = request.args.get('rt')
         at = request.args.get('at')
         
-        return 'Token inviati a resource server'
+        return redirect('http://127.0.0.1:8100/auth/token_endpoint?rt={}&at={}'.format(rt,at))
 
 
 
@@ -72,35 +72,92 @@ def generate_token():
     
     if grant_type == 'authorization_code':
         if authCode == check_information['authCode'] and check_password_hash(clientSecret, check_information['clientSecret']):
+            from datetime import datetime, timedelta
+            import json
+            from base64 import urlsafe_b64encode
+
+            date = datetime.now()
+            date_exp_at = date + timedelta(minutes=30)
+            date_exp_rt = date + timedelta(minutes=120)
+
             payload_AT = {
               'iss':    'http://localhost:9001/',
               'sub':    session.get('user_id'),
               'aud':    'http://localhost:8100/',
-              'iat':    datetime.datetime.now(),
-              'exp':    datetime.datetime.now() + datetime.timedelta(minutes=30),
+              'iat':    date.timestamp(),
+              'exp':    date_exp_at.timestamp(),
               'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
             }
+
             payload_RT = {
                 'iss':    'http://localhost:9001/',
                 'sub':    session.get('user_id'),
                 'aud':    'http://localhost:8100/',
-                'iat':    datetime.datetime.now(),
-                'exp':    datetime.datetime.now() + datetime.timedelta(minutes=120),
+                'iat':    date.timestamp(),
+                'exp':    date_exp_rt.timestamp(),
                 'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
             }
-            token_jwt_AT = None
-            token_jwt_RT = None
-            with open(current_app.config['PEM_KEY'], 'r') as private_key:  
-                token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256", headers={'typ': 'JWT'})
-            with open(current_app.config['PEM_KEY'], 'r') as private_key:  
-                token_jwt_RT = jwt.encode(payload_RT, private_key.read(), algorithm="RS256", headers={'typ': 'JWT'})
+
+            import jwt
+
+            # Firma dei token
+            with open('/home/andrea/github/progettoSoa/oauth/cert/private_sign.pem', 'rb') as private_key:
+                token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256")
+            with open('/home/andrea/github/progettoSoa/oauth/cert/private_sign.pem', 'rb') as private_key:
+                token_jwt_RT = jwt.encode(payload_RT, private_key.read(), algorithm="RS256")
+
+            print(token_jwt_RT)
+
+            from cryptography.hazmat.backends import default_backend
+            from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.asymmetric import padding
+
+            # Leggo la chiave privata
+            with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
+		            private_key = serialization.load_pem_private_key(
+			            key_file.read(),
+			            password = None,
+			            backend = default_backend()
+			            )
+            public_key = private_key.public_key()
+
+            # Divido il token per ogni .
+            splitted_at = token_jwt_AT.split('.')
+            splitted_at[1] = public_key.encrypt(
+		            bytes(str(splitted_at[1]), 'utf-8'),
+                    padding.OAEP(
+			        mgf = padding.MGF1(algorithm=hashes.SHA1()),
+			        algorithm = hashes.SHA1(),
+			        label = None
+			    )
+	        ) 
+            splitted_rt = token_jwt_RT.split('.')
+            splitted_rt[1] = public_key.encrypt(
+		            bytes(splitted_rt[1], 'utf-8'),
+		            padding.OAEP(
+			        mgf = padding.MGF1(algorithm=hashes.SHA1()),
+			        algorithm = hashes.SHA1(),
+			        label = None
+			    )
+	        )
+            
+            splitted_at[0] = bytes(splitted_rt[0], 'utf-8')
+            splitted_at[2] = bytes(splitted_rt[2], 'utf-8')
+
+            splitted_rt[0] = bytes(splitted_rt[0], 'utf-8')
+            splitted_rt[2] = bytes(splitted_rt[2], 'utf-8')
+
+            print('qui')
+            print(splitted_rt[1])
+
             db.execute('INSERT INTO RefreshToken(clientSecret, refreshToken) VALUES (?,?)', (clientSecret, token_jwt_RT))
             db.commit()
             db.execute('DELETE FROM Code WHERE authCode=? AND clientId=?', (authCode, clientId))
             db.commit()
-            return redirect(url_for('auth.rURI', rt = token_jwt_RT, at = token_jwt_AT))
+            return redirect(url_for('auth.rURI', rt = [base64.urlsafe_b64encode(i) for i in splitted_rt], at = [base64.urlsafe_b64encode(i) for i in splitted_at]))
 
-    elif grant_type == 'refresh_token':
+        elif grant_type == 'refresh_token':
             payload_AT = {
               'iss':    'http://localhost:9001/',
               'sub':    session.get('user_id'),
