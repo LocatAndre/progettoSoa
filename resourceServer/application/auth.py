@@ -182,6 +182,7 @@ def token_endpoint():
             )
     from ast import literal_eval
     rt = literal_eval(rt)
+    at = literal_eval(at)
 
     rt['payload'] = private_key.decrypt(
 	    base64.urlsafe_b64decode(rt['payload']),
@@ -192,14 +193,26 @@ def token_endpoint():
 		)
 	)
 
-    token_JWT_unencoded = '{}.{}.{}'.format(rt['header'],rt['payload'].decode("utf-8"),rt['sign'])
+    at['payload'] = private_key.decrypt(
+	    base64.urlsafe_b64decode(at['payload']),
+	    padding.OAEP(
+		    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
+			    algorithm = hashes.SHA1(),
+			    label = None
+		)
+	)
 
-    print(token_JWT_unencoded)
+    rt_token_JWT_unencoded = '{}.{}.{}'.format(rt['header'],rt['payload'].decode("utf-8"),rt['sign'])
+    at_token_JWT_unencoded = '{}.{}.{}'.format(at['header'],at['payload'].decode("utf-8"),at['sign'])
 
     import jwt
     #Verifico la firma
     with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-        return jwt.decode(token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})   
+        rt_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})
+    with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
+        at_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})
+
+    return('Entrambi token decodificati')
 
 
 def login_required(view):
