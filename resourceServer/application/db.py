@@ -70,6 +70,15 @@ def delete_team_tabble():
     db.execute('DROP TABLE IF EXISTS team')
     db.commit()
 
+@click.command('delete-user')
+@click.argument('user', nargs=1)
+def delete_user(user):
+    db = get_db()
+    db.execute('DELETE FROM user_team WHERE username=?', (user,))
+    db.commit()
+    db.execute('DELETE FROM user WHERE username=?', (user,))
+    db.commit()
+
 def init_app(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(init_db_command)
@@ -77,3 +86,4 @@ def init_app(app):
     app.cli.add_command(add_team)
     app.cli.add_command(add_league_matchday)
     app.cli.add_command(get_current_league_matchday)
+    #app.cli.add_command(delete_user)

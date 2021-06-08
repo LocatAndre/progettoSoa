@@ -4,6 +4,15 @@ import pyqrcode
 from io import BytesIO
 import os
 import base64
+from datetime import datetime
+from ast import literal_eval
+import jwt
+
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 
 from flask import (
     Blueprint,
@@ -14,7 +23,8 @@ from flask import (
     request,
     session,
     url_for,
-    abort
+    abort,
+    make_response
 )
 
 from werkzeug.security import (
@@ -26,17 +36,43 @@ from .db import get_db
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+def controllo_token(*token):
+    date = datetime.now().timestamp()
+    for t in token:
+        if t['iss'] == 'http://localhost:9001/' and float(t['iat']) < float(date) and float(t['exp']) >= float(date):
+            return True
+        else:
+            return False
 
 @bp.route('/login')
 def login():
     return render_template('site/login.html')
 
+@bp.route('/login/otp')
+def otp_page():
+    return render_template('site/otp.html')
+
+@bp.route('/login/otp/checkOtp', methods=['GET','POST'])
+def check_otp():
+    email = session.get('mail')
+    otp = request.form.get('otp')
+
+    db = get_db()
+    error = None
+    user = db.execute('SELECT * FROM user WHERE email = ?',
+                      (email,)).fetchone()
+    
+    if not onetimepass.valid_totp(otp, user['otpSecret']):
+        error = 'OTP errato' + otp
+        return redirect(url_for('auth.otp_page'))
+    else:
+        session['user_id'] = user['id']
+        return redirect(url_for('site.index'))
 
 @bp.route('/login/checkuser', methods=['POST'])
 def checkuser():
     email = request.form.get('email')
     password = request.form.get('password')
-    otp = request.form.get('otp')
 
     db = get_db()
     error = None
@@ -47,16 +83,17 @@ def checkuser():
         error = 'Mail non presente'
     elif not check_password_hash(user['password'], password):
         error = 'Pasword errata'
-    elif not onetimepass.valid_totp(otp, user['otpSecret']):
-        error = 'OTP errato' + otp
-
+    elif user['token_required'] != 0:
+        error = 'Account proveniente da un oAuth server'
     if error is None:
         # pulisce le sessioni precednti
         session.clear()
-        # crea un cookie di sessione per la sessione corrente
+        # crea la sessione corrente
         session['user_id'] = user['id']
-        return redirect(url_for('site.index'))
+        session['mail'] = email
+        return redirect(url_for('auth.otp_page'))     
 
+    session.clear()
     flash(error)
     return redirect(url_for('auth.login'))
 
@@ -127,15 +164,11 @@ def two_factor_setup():
     if user is None:
         return redirect(url_for('site.index'))
 
+    session['user_id'] = user['id']
     return render_template('site/2fa.html'), 200, {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'}
-
-@bp.route('/controlloToken', methods=['POST', 'GET'])
-def controlloToken():
-    print('Eccomi')
-    return 'Eccomi'
 
 @bp.route('/qrcode')
 def qrcode():
@@ -163,57 +196,123 @@ def qrcode():
 
 @bp.route('/token_endpoint')
 def token_endpoint():
-    import url64
-
     rt = request.args.get('rt')
     at = request.args.get('at')
+  
+    #Caso ricezione ar e rt
+    if at != 'None' and rt != 'None':
+        #Decifro il payload 
+        with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
+	        private_key = serialization.load_pem_private_key(
+	            key_file.read(),
+	            password = None,
+	            backend = default_backend()
+                )
+        rt = literal_eval(rt)
+        at = literal_eval(at)
+        rt['payload'] = private_key.decrypt(
+	        base64.urlsafe_b64decode(rt['payload']),
+	        padding.OAEP(
+	    	    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
+	    		    algorithm = hashes.SHA1(),
+	    		    label = None
+	    	)
+	    )
 
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric import padding
+        at['payload'] = private_key.decrypt(
+	        base64.urlsafe_b64decode(at['payload']),
+	        padding.OAEP(
+	    	    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
+	    		    algorithm = hashes.SHA1(),
+	    		    label = None
+	    	)
+	    )
+
+        rt_token_JWT_unencoded = '{}.{}.{}'.format(rt['header'],rt['payload'].decode("utf-8"),rt['sign'])
+        at_token_JWT_unencoded = '{}.{}.{}'.format(at['header'],at['payload'].decode("utf-8"),at['sign'])
+
+        #Verifico la firma
+        with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
+            rt_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), audience='http://localhost:8100/',algorithms=["RS256"])
+        with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
+            at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), audience='http://localhost:8100/', algorithms=["RS256"])
+
+        if(controllo_token(rt_token, at_token)):
+            resp = make_response(redirect(url_for('auth.token_operation')))       
+            resp.set_cookie('refresh_token', str(rt_token), expires=rt_token['exp'])    
+            resp.set_cookie('access_token', str(at_token), expires=at_token['exp'])
+            return resp
+        else:
+            return 'Token non validi'
+    # Caso ricezione solo at
+    else:
+         #Decifro il payload 
+        with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
+	        private_key = serialization.load_pem_private_key(
+	            key_file.read(),
+	            password = None,
+	            backend = default_backend()
+                )
+        at = literal_eval(at)
+        at['payload'] = private_key.decrypt(
+	        base64.urlsafe_b64decode(at['payload']),
+	        padding.OAEP(
+	    	    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
+	    		    algorithm = hashes.SHA1(),
+	    		    label = None
+	    	)
+	    )
+        at_token_JWT_unencoded = '{}.{}.{}'.format(at['header'],at['payload'].decode("utf-8"),at['sign'])
+        with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
+            at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), audience='http://localhost:8100/', algorithms=["RS256"])
+
+        if(controllo_token(at_token)):
+            resp = make_response(redirect(url_for('auth.token_operation')))       
+            resp.set_cookie('access_token', str(at_token), expires=at_token['exp'])
+            return resp
+        else:
+            return 'Token non validi'
+
+@bp.route('/token_operation')
+def token_operation():
+    at = literal_eval(request.cookies.get('access_token'))
     
-    #Decifro il payload 
-    with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
-	    private_key = serialization.load_pem_private_key(
-	        key_file.read(),
-	        password = None,
-	        backend = default_backend()
-            )
-    from ast import literal_eval
-    rt = literal_eval(rt)
-    at = literal_eval(at)
+    print(at)
 
-    rt['payload'] = private_key.decrypt(
-	    base64.urlsafe_b64decode(rt['payload']),
-	    padding.OAEP(
-		    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
-			    algorithm = hashes.SHA1(),
-			    label = None
-		)
-	)
+    db = get_db()
+    user = db.execute('SELECT * FROM user WHERE email = ?',
+                      (at['sub'],)).fetchone()
 
-    at['payload'] = private_key.decrypt(
-	    base64.urlsafe_b64decode(at['payload']),
-	    padding.OAEP(
-		    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
-			    algorithm = hashes.SHA1(),
-			    label = None
-		)
-	)
+    if user is None:
+        otpSecret = base64.b32encode(os.urandom(10)).decode('utf-8')
+        db.execute('INSERT INTO user (email, username, password, otpSecret, token_required) VALUES (?, ?, ?, ?,?)',
+                   (at['sub'], at['sub'].split('@')[0], at['psw'], otpSecret, 1)
+                   )
+        db.commit()
 
-    rt_token_JWT_unencoded = '{}.{}.{}'.format(rt['header'],rt['payload'].decode("utf-8"),rt['sign'])
-    at_token_JWT_unencoded = '{}.{}.{}'.format(at['header'],at['payload'].decode("utf-8"),at['sign'])
+        session['mail'] = at['sub']
+        return redirect(url_for('auth.two_factor_setup'))
+    else:
+        db = get_db()
+        error = None
+        user = db.execute('SELECT * FROM user WHERE email = ?',
+                          (at['sub'],)).fetchone()
 
-    import jwt
-    #Verifico la firma
-    with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-        rt_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})
-    with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-        at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), algorithms=["RS256"],options={"verify_signature": False})
-
-    return('Entrambi token decodificati')
-
+        if user is None:
+            error = 'Mail errata nel token'
+        elif user['password'] != at['psw']:
+            error = 'Pasword errata nel token {}\n{}'.format(user['password'], at['psw'])
+        if error is None:
+            # pulisce le sessioni precednti
+            session.clear()
+            # crea la sessione corrente
+            session['mail'] = at['sub']
+            return redirect(url_for('auth.otp_page'))     
+        
+        session.clear()
+        flash(error)
+        return redirect(url_for('site.index'))
+    #return 'Qualcosa è andato storto'
 
 def login_required(view):
     @functools.wraps(view)
@@ -222,6 +321,20 @@ def login_required(view):
             flash('Registrazione obbligatoria')
             return redirect(url_for('auth.login'))
 
+        db = get_db()
+        user_id = session.get('user_id')
+        user = db.execute('SELECT * FROM user WHERE id = ?',
+                      (user_id,)).fetchone()
+
+        if request.cookies.get('refresh_token') == None and user['token_required'] == 1:
+            flash('Token Scaduto')
+            return redirect(url_for('auth.login'))
+        else:
+            if request.cookies.get('access_token') == None and user['token_required'] == 1:
+                cs = request.cookies.get('clientSecret')
+                ci = request.cookies.get('clientId')
+                rt = literal_eval(request.cookies.get('refresh_token'))
+                return redirect('http://127.0.0.1:9001/auth/generateToken?clientSecret={}&clientId={}&grant_type=refresh_token&mail={}'.format(cs,ci,rt['sub']))
         return view(**kwargs)
 
     return wrapped_view

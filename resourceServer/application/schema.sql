@@ -1,8 +1,8 @@
 DROP TABLE IF EXISTS user;
 DROP TABLE IF EXISTS user_team;
-DROP TABLE IF EXISTS competition;
-DROP TABLE IF EXISTS matches;
-DROP TABLE IF EXISTS team;
+/*DROP TABLE IF EXISTS competition;*/
+/*DROP TABLE IF EXISTS matches;*/
+/*DROP TABLE IF EXISTS team;*/
 DROP TABLE IF EXISTS player;
 
 CREATE TABLE user (
@@ -10,7 +10,8 @@ CREATE TABLE user (
     username text NOT NULL,
     email text NOT NULL,
     password NOT NULL,
-    otpSecret text NOT NULL
+    otpSecret text NOT NULL,
+    token_required integer NOT NULL DEFAULT 0 CHECK(token_required IN (0,1))
 );
 
 CREATE TABLE user_team (
@@ -20,7 +21,7 @@ CREATE TABLE user_team (
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
-CREATE TABLE competition (
+CREATE TABLE IF NOT EXISTS competition (
     id integer PRIMARY KEY NOT NULL,
     name text NOT NULL,
     nation text NOT NULL,
@@ -29,7 +30,7 @@ CREATE TABLE competition (
     endComp date NOT NULL 
 );
 
-CREATE TABLE matches (
+CREATE TABLE IF NOT EXISTS matches(
     id integer PRIMARY KEY AUTOINCREMENT,
     competition int NOT NULL,
     matchday int NOT NULL,
@@ -43,7 +44,7 @@ CREATE TABLE matches (
     FOREIGN KEY (competition) REFERENCES competition(id)
 );
 
-CREATE TABLE team (
+CREATE TABLE IF NOT EXISTS team (
     id integer PRIMARY KEY,
     name text NOT NULL,
     shortname text NOT NULL,

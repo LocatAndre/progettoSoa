@@ -3,14 +3,14 @@
         {
             "previewLimit": 50,
             "driver": "SQLite",
-            "name": "SOA",
-            "database": "${workspaceFolder:progettoSoa}/instance/db.sqlite"
+            "database": "${workspaceFolder:progettoSoa}/resourceServer/instance/db.sqlite",
+            "name": "resrceServer"
         },
         {
             "previewLimit": 50,
             "driver": "SQLite",
-            "database": "${workspaceFolder:progettoSoa}/oauth/instance/db.sqlite",
-            "name": "oauthGithub"
+            "name": "oAuth Server",
+            "database": "${workspaceFolder:progettoSoa}/oauth/instance/db.sqlite"
         }
     ],
     "sqltools.useNodeRuntime": true
