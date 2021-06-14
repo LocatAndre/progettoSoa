@@ -39,7 +39,7 @@ bp = Blueprint('auth', __name__, url_prefix='/auth')
 def controllo_token(*token):
     date = datetime.now().timestamp()
     for t in token:
-        if t['iss'] == 'http://localhost:9001/' and float(t['iat']) < float(date) and float(t['exp']) >= float(date):
+        if t['iss'] == 'https://localhost:9001/' and float(t['iat']) < float(date) and float(t['exp']) >= float(date):
             return True
         else:
             return False
@@ -69,8 +69,8 @@ def check_otp():
         session['user_id'] = user['id']
         return redirect(url_for('site.index'))
 
-@bp.route('/login/checkuser', methods=['POST'])
-def checkuser():
+@bp.route('/login/checkUser', methods=['POST'])
+def checkUser():
     email = request.form.get('email')
     password = request.form.get('password')
 
@@ -198,9 +198,13 @@ def qrcode():
 def token_endpoint():
     rt = request.args.get('rt')
     at = request.args.get('at')
-  
+ 
     #Caso ricezione ar e rt
     if at != 'None' and rt != 'None':
+
+        rt = base64.urlsafe_b64decode(rt)
+        at = base64.urlsafe_b64decode(at)
+
         #Decifro il payload 
         with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
 	        private_key = serialization.load_pem_private_key(
@@ -208,10 +212,10 @@ def token_endpoint():
 	            password = None,
 	            backend = default_backend()
                 )
-        rt = literal_eval(rt)
-        at = literal_eval(at)
+        rt = literal_eval(rt.decode("utf-8"))
+        at = literal_eval(at.decode("utf-8"))
         rt['payload'] = private_key.decrypt(
-	        base64.urlsafe_b64decode(rt['payload']),
+	        rt['payload'],
 	        padding.OAEP(
 	    	    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
 	    		    algorithm = hashes.SHA1(),
@@ -220,7 +224,7 @@ def token_endpoint():
 	    )
 
         at['payload'] = private_key.decrypt(
-	        base64.urlsafe_b64decode(at['payload']),
+	        at['payload'],
 	        padding.OAEP(
 	    	    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
 	    		    algorithm = hashes.SHA1(),
@@ -233,9 +237,9 @@ def token_endpoint():
 
         #Verifico la firma
         with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-            rt_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), audience='http://localhost:8100/',algorithms=["RS256"])
+            rt_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), audience='https://localhost:8100/',algorithms=["RS256"])
         with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-            at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), audience='http://localhost:8100/', algorithms=["RS256"])
+            at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), audience='https://localhost:8100/', algorithms=["RS256"])
 
         if(controllo_token(rt_token, at_token)):
             resp = make_response(redirect(url_for('auth.token_operation')))       
@@ -246,16 +250,17 @@ def token_endpoint():
             return 'Token non validi'
     # Caso ricezione solo at
     else:
-         #Decifro il payload 
+        at = base64.urlsafe_b64decode(at)
+        #Decifro il payload 
         with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
 	        private_key = serialization.load_pem_private_key(
 	            key_file.read(),
 	            password = None,
 	            backend = default_backend()
                 )
-        at = literal_eval(at)
+        at = literal_eval(at.decode("utf-8"))
         at['payload'] = private_key.decrypt(
-	        base64.urlsafe_b64decode(at['payload']),
+	        at['payload'],
 	        padding.OAEP(
 	    	    	mgf = padding.MGF1(algorithm=hashes.SHA1()),
 	    		    algorithm = hashes.SHA1(),
@@ -264,7 +269,7 @@ def token_endpoint():
 	    )
         at_token_JWT_unencoded = '{}.{}.{}'.format(at['header'],at['payload'].decode("utf-8"),at['sign'])
         with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
-            at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), audience='http://localhost:8100/', algorithms=["RS256"])
+            at_token = jwt.decode(at_token_JWT_unencoded, public_key.read(), audience='https://localhost:8100/', algorithms=["RS256"])
 
         if(controllo_token(at_token)):
             resp = make_response(redirect(url_for('auth.token_operation')))       
@@ -276,8 +281,6 @@ def token_endpoint():
 @bp.route('/token_operation')
 def token_operation():
     at = literal_eval(request.cookies.get('access_token'))
-    
-    print(at)
 
     db = get_db()
     user = db.execute('SELECT * FROM user WHERE email = ?',
@@ -293,26 +296,43 @@ def token_operation():
         session['mail'] = at['sub']
         return redirect(url_for('auth.two_factor_setup'))
     else:
-        db = get_db()
-        error = None
-        user = db.execute('SELECT * FROM user WHERE email = ?',
-                          (at['sub'],)).fetchone()
+        if user['token_required'] == 0:
+            error = 'Utente già presente'
+            flash(error)
+            return redirect(url_for('auth.login'))
+        else:
+            if request.cookies.get('refresh_token') == None:
+                db = get_db()
+                error = None
+                user = db.execute('SELECT * FROM user WHERE email = ?',
+                                  (at['sub'],)).fetchone()
 
-        if user is None:
-            error = 'Mail errata nel token'
-        elif user['password'] != at['psw']:
-            error = 'Pasword errata nel token {}\n{}'.format(user['password'], at['psw'])
-        if error is None:
-            # pulisce le sessioni precednti
-            session.clear()
-            # crea la sessione corrente
-            session['mail'] = at['sub']
-            return redirect(url_for('auth.otp_page'))     
+                if user is None:
+                    error = 'Mail errata nel token'
+                elif user['password'] != at['psw']:
+                    error = 'Pasword errata nel token {}\n{}'.format(user['password'], at['psw'])
+                if error is None:
+                    # pulisce le sessioni precednti
+                    session.clear()
+                    # crea la sessione corrente
+                    session['mail'] = at['sub']
+                    return redirect(url_for('auth.otp_page'))
+            else:
+                rt = literal_eval(request.cookies.get('refresh_token'))
+                user = db.execute('SELECT * FROM user WHERE email = ?',
+                                  (rt['sub'],)).fetchone()
+                session['user_id'] = user['id']     
+                return redirect(url_for('site.index'))
         
         session.clear()
         flash(error)
         return redirect(url_for('site.index'))
     #return 'Qualcosa è andato storto'
+
+@bp.route('/login/oauth')
+def login_oauth():
+        
+    return redirect('https://127.0.0.1:9001/auth/login?redirect_uri=https://127.0.0.1:9001/rURI&scope=hooligans&response_type=code')
 
 def login_required(view):
     @functools.wraps(view)
@@ -328,13 +348,14 @@ def login_required(view):
 
         if request.cookies.get('refresh_token') == None and user['token_required'] == 1:
             flash('Token Scaduto')
+            session.clear()
             return redirect(url_for('auth.login'))
         else:
             if request.cookies.get('access_token') == None and user['token_required'] == 1:
                 cs = request.cookies.get('clientSecret')
                 ci = request.cookies.get('clientId')
                 rt = literal_eval(request.cookies.get('refresh_token'))
-                return redirect('http://127.0.0.1:9001/auth/generateToken?clientSecret={}&clientId={}&grant_type=refresh_token&mail={}'.format(cs,ci,rt['sub']))
+                return redirect('https://127.0.0.1:9001/auth/generateToken?clientSecret={}&clientId={}&grant_type=refresh_token&mail={}'.format(cs,ci,rt['sub']))
         return view(**kwargs)
 
     return wrapped_view

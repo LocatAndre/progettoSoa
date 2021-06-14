@@ -7,8 +7,10 @@
                 <div class="columns is-centered">
                     <div class="column is-5-tablet is-4-desktop is-3-widescreen">
                         <form action="/auth/checkApprove" method="post">
-                            <div class="field">
-                                Consenti gli accessi, controlla i parametri
+                            <div class="card">
+                                <div class="card-content">
+                                  <div class="content">
+                                    Consenti gli accessi, controlla i parametri
                                 <ul>
                                     <li>Scope: {{ scope }}</li>
                                     <li>Redirect_uri: {{ redirect_uri }}</li>
@@ -19,9 +21,11 @@
                                 <input hidden type="text" name="redirect_uri" id="redirect_uri"
                                        value="{{ redirect_uri }}">
 
-                                <input class="button is-success" type="submit" value="Approve">
-                                <a class="button is-danger is-outlined" href="{{ url_for('auth.logout') }}">Esci</a>
-                            </div>
+                                <input class="button is-success" type="submit" value="Approva">
+                                <a class="button is-danger" href="{{ url_for('auth.logout') }}">Esci</a>
+                                  </div>
+                                </div>
+                              </div>
                         </form>
                     </div>
                 </div>

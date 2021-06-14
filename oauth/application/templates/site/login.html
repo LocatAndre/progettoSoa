@@ -7,9 +7,9 @@
             <div class="columns is-centered">
                 <div class="column is-5-tablet is-4-desktop is-3-widescreen">
                     {% if redirect_uri != None and scope != None %}
-                    <form action="login/checkuser?redirect_uri={{redirect_uri}}&scope={{scope}}&response_type={{response_type}}" method="POST" class="box">
+                    <form action="login/checkUser?redirect_uri={{redirect_uri}}&scope={{scope}}&response_type={{response_type}}" method="POST" class="box">
                     {%else%}
-                    <form action="login/checkuser" method="POST" class="box">
+                    <form action="login/checkUser" method="POST" class="box">
                     {%endif%}
                         <div class="field">
                             <label for="" class="label">Email</label>

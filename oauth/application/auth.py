@@ -21,6 +21,14 @@ from werkzeug.security import (
     generate_password_hash
 )
 
+import jwt
+from datetime import datetime, timedelta
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from base64 import urlsafe_b64encode
+
 from .db import get_db
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -50,7 +58,7 @@ def rURI():
         rt = request.args.get('rt')
         at = request.args.get('at')
         
-        return redirect('http://127.0.0.1:8100/auth/token_endpoint?rt={}&at={}'.format(rt,at))
+        return redirect('https://127.0.0.1:8100/auth/token_endpoint?rt={}&at={}'.format(rt,at))
 
 
 
@@ -73,15 +81,6 @@ def generate_token():
     else:
         psw = db.execute('SELECT password FROM UserInformation WHERE username=?', (session.get('user_id'),)).fetchone()['password']
 
-    import datetime
-    import jwt
-    from datetime import datetime, timedelta
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives.asymmetric import padding
-    from base64 import urlsafe_b64encode
-
     if grant_type == 'authorization_code':
         if authCode == check_information['authCode'] and check_password_hash(clientSecret, check_information['clientSecret']):
             
@@ -93,20 +92,20 @@ def generate_token():
             date_exp_rt = date + timedelta(minutes=120)
 
             payload_AT = {
-              'iss':    'http://localhost:9001/',
+              'iss':    'https://localhost:9001/',
               'sub':    session.get('user_id'),
               'psw':    psw,
-              'aud':    'http://localhost:8100/',
+              'aud':    'https://localhost:8100/',
               'iat':    date.timestamp(),
               'exp':    date_exp_at.timestamp(),
               'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
             }
 
             payload_RT = {
-                'iss':  'http://localhost:9001/',
+                'iss':  'https://localhost:9001/',
                 'sub':  session.get('user_id'),
                 'psw':  psw,
-                'aud':  'http://localhost:8100/',
+                'aud':  'https://localhost:8100/',
                 'iat':  date.timestamp(),
                 'exp':  date_exp_rt.timestamp(),
                 'jti':  base64.b32encode(os.urandom(10)).decode('utf-8')
@@ -145,16 +144,16 @@ def generate_token():
 			        label = None
 			    )
 	        )
-            
+        
             final_token_at = {
                 'header':   splitted_at[0],
-                'payload':  base64.urlsafe_b64encode(splitted_at[1]),
+                'payload':  splitted_at[1],
                 'sign':     splitted_at[2]
             }
 
             final_token_rt = {
                 'header':   splitted_rt[0],
-                'payload':  base64.urlsafe_b64encode(splitted_rt[1]),
+                'payload':  splitted_rt[1],
                 'sign':     splitted_rt[2]
             }
 
@@ -162,7 +161,8 @@ def generate_token():
             db.commit()
             db.execute('DELETE FROM Code WHERE authCode=? AND clientId=?', (authCode, clientId))
             db.commit()
-            return redirect(url_for('auth.rURI', rt = final_token_rt, at = final_token_at))
+
+            return redirect(url_for('auth.rURI', rt = base64.urlsafe_b64encode(bytes(str(final_token_rt),'utf-8')), at = base64.urlsafe_b64encode(bytes(str(final_token_at),'utf-8'))))
     
     elif grant_type == 'refresh_token':
             date = datetime.now()
@@ -170,10 +170,10 @@ def generate_token():
             date_exp_rt = date + timedelta(minutes=120)
 
             payload_AT = {
-              'iss':    'http://localhost:9001/',
+              'iss':    'https://localhost:9001/',
               'sub':    user,
               'psw':    psw,
-              'aud':    'http://localhost:8100/',
+              'aud':    'https://localhost:8100/',
               'iat':    date.timestamp(),
               'exp':    date_exp_at.timestamp(),
               'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
@@ -181,6 +181,8 @@ def generate_token():
             # Firma dei token
             with open('/home/andrea/github/progettoSoa/oauth/cert/private_sign.pem', 'rb') as private_key:
                 token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256")
+            
+            print(token_jwt_AT)
             # Leggo la chiave privata
             with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
 		            private_key = serialization.load_pem_private_key(
@@ -202,10 +204,10 @@ def generate_token():
 	        )
             final_token_at = {
                 'header':   splitted_at[0],
-                'payload':  base64.urlsafe_b64encode(splitted_at[1]),
+                'payload':  splitted_at[1],
                 'sign':     splitted_at[2]
             }
-            return redirect(url_for('auth.rURI', at = final_token_at))
+            return redirect(url_for('auth.rURI', rt = None, at = base64.urlsafe_b64encode(bytes(str(final_token_at), 'utf-8'))))
     else:
         return 'Token non supportato'
         
@@ -256,8 +258,8 @@ def checkApprove():
             return 'responseType non supportato'
 
 
-@bp.route('/login/checkuser', methods=['POST'])
-def checkuser():
+@bp.route('/login/checkUser', methods=['POST'])
+def checkUser():
     email = request.form.get('email')
     password = request.form.get('password')
 
@@ -352,14 +354,13 @@ def checkregister():
                    )
         db.commit()
 
-        import datetime
         # Genero il file contentente le informazioni
         # I client potrà riutilizzare per i prossimi login
         resp = make_response(render_template('site/login.html'))
-        resp.set_cookie('clientId', clientId, expires=datetime.datetime.now(
-        ) + datetime.timedelta(days=90))
+        resp.set_cookie('clientId', clientId, expires=datetime.now(
+        ) + timedelta(days=90))
         resp.set_cookie('clientSecret', generate_password_hash(clientSecret),
-                        expires=datetime.datetime.now() + datetime.timedelta(days=90))
+                        expires=datetime.now() + timedelta(days=90))
         return resp
 
     flash(error)

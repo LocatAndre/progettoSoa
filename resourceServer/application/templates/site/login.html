@@ -6,7 +6,7 @@
         <div class="container">
             <div class="columns is-centered">
                 <div class="column is-5-tablet is-4-desktop is-3-widescreen">
-                    <form action="login/checkuser" method="POST" class="box">
+                    <form action="login/checkUser" method="POST" class="box">
                         <div class="field">
                             <label for="" class="label">Email</label>
                             <div class="control has-icons-left">
@@ -26,10 +26,11 @@
                             </div>
                         </div>
                         <div class="field">
-                            <input type="submit" class="button is-success" value="Login">
-                            <a class="button is-success" href="http://127.0.0.1:9001/auth/login?redirect_uri=http://127.0.0.1:8100/rURI&scope=hooligans&response_type=code">Login server Giuls</a>
+                            <input type="submit" class="button is-success" value="Prosegui">
+                            <hr>
+                            <a class="button is-success" href="{{ url_for('auth.login_oauth') }}">Login server Oauth</a>
                         </div>
-                        <a href="{{url_for('auth.register')}}" class="button is-text">Non registrato? Registrati!</a>
+                        <a href="{{url_for('auth.register')}}" class="button is-text">Non sei registrato? Registrati!</a>
                     </form>
                     {% for message in get_flashed_messages() %}
                     <article class="message is-danger">
