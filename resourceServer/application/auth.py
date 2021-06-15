@@ -36,6 +36,10 @@ from .db import get_db
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+#qui controlliamo i parametri del token:
+# - issuer deve essere il server OAuth
+# - il token deve essere stato emesso prima del momento corrente
+# - il token deve scadere dopo il tempo corrente o al momento corrente
 def controllo_token(*token):
     date = datetime.now().timestamp()
     for t in token:
@@ -166,7 +170,7 @@ def two_factor_setup():
 
     session['user_id'] = user['id']
     return render_template('site/2fa.html'), 200, {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',  
         'Pragma': 'no-cache',
         'Expires': '0'}
 
@@ -185,33 +189,38 @@ def qrcode():
     del session['mail']
 
     # render qrcode
+    # creiamo il qrcode in base all'otp secret e alla mail dell'utente
     url = pyqrcode.create('otpauth://totp/:{0}?secret={1}&issuer=Holligans'.format(user['username'], user['otpSecret']))
     stream = BytesIO()
     url.svg(stream, scale=3)
     return stream.getvalue(), 200, {
+        # il qrcode non si salva in cache, non può essere salvato (es. come immagine), ad ogni refresh della
+        # pagina è diverso e il qrcode sparisce ogni volta che si cambia pagina
         'Content-Type': 'image/svg+xml',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'}
 
+# qui controlliamo i token
 @bp.route('/token_endpoint')
 def token_endpoint():
     rt = request.args.get('rt')
     at = request.args.get('at')
  
-    #Caso ricezione ar e rt
+    #Caso ricezione access_tokne e refresh_token
     if at != 'None' and rt != 'None':
 
         rt = base64.urlsafe_b64decode(rt)
         at = base64.urlsafe_b64decode(at)
 
-        #Decifro il payload 
+        #Decifriamo il payload dei token con la chiave privata del resource server
         with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
 	        private_key = serialization.load_pem_private_key(
 	            key_file.read(),
 	            password = None,
 	            backend = default_backend()
                 )
+        # literal_eval converte i token da stringa a dizionario
         rt = literal_eval(rt.decode("utf-8"))
         at = literal_eval(at.decode("utf-8"))
         rt['payload'] = private_key.decrypt(
@@ -235,7 +244,7 @@ def token_endpoint():
         rt_token_JWT_unencoded = '{}.{}.{}'.format(rt['header'],rt['payload'].decode("utf-8"),rt['sign'])
         at_token_JWT_unencoded = '{}.{}.{}'.format(at['header'],at['payload'].decode("utf-8"),at['sign'])
 
-        #Verifico la firma
+        #Verifichiamo la firma con la k_pubb del server OAuth
         with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
             rt_token = jwt.decode(rt_token_JWT_unencoded, public_key.read(), audience='https://localhost:8100/',algorithms=["RS256"])
         with open('/home/andrea/github/progettoSoa/oauth/cert/public_sign.pub', 'rb') as public_key:
@@ -248,7 +257,7 @@ def token_endpoint():
             return resp
         else:
             return 'Token non validi'
-    # Caso ricezione solo at
+    # Caso ricezione solo access_token
     else:
         at = base64.urlsafe_b64decode(at)
         #Decifro il payload 
@@ -278,6 +287,7 @@ def token_endpoint():
         else:
             return 'Token non validi'
 
+# distinguiamo utenti OAuth e non OAuth in base alla presenza dei token
 @bp.route('/token_operation')
 def token_operation():
     at = literal_eval(request.cookies.get('access_token'))
@@ -285,8 +295,9 @@ def token_operation():
     db = get_db()
     user = db.execute('SELECT * FROM user WHERE email = ?',
                       (at['sub'],)).fetchone()
-
+    # qui se l'utente utilizza il servizio OAuth per la prima volta per accedere al resource server
     if user is None:
+        # qui si crea il segreto otp e poi si inserisce il nuovo utente nel db del resource server
         otpSecret = base64.b32encode(os.urandom(10)).decode('utf-8')
         db.execute('INSERT INTO user (email, username, password, otpSecret, token_required) VALUES (?, ?, ?, ?,?)',
                    (at['sub'], at['sub'].split('@')[0], at['psw'], otpSecret, 1)
@@ -296,12 +307,16 @@ def token_operation():
         session['mail'] = at['sub']
         return redirect(url_for('auth.two_factor_setup'))
     else:
+        # qui utente non OAuth (ma semplicemente registrato al resource server)
         if user['token_required'] == 0:
             error = 'Utente già presente'
             flash(error)
             return redirect(url_for('auth.login'))
         else:
-            if request.cookies.get('refresh_token') == None:
+            # qui se utente OAuth 
+            # qui per fare in modo che quando l'utente presenta i token per la prima volta (dopo essersi 
+            # registrato al resource server) venga richiesto l'inserimento del codice otp
+            if user['otp_required'] == 1:
                 db = get_db()
                 error = None
                 user = db.execute('SELECT * FROM user WHERE email = ?',
@@ -310,14 +325,19 @@ def token_operation():
                 if user is None:
                     error = 'Mail errata nel token'
                 elif user['password'] != at['psw']:
-                    error = 'Pasword errata nel token {}\n{}'.format(user['password'], at['psw'])
+                    error = 'Password errata nel token {}\n{}'.format(user['password'], at['psw'])
                 if error is None:
                     # pulisce le sessioni precednti
                     session.clear()
                     # crea la sessione corrente
                     session['mail'] = at['sub']
+
+                    db.execute('UPDATE user SET otp_required=0 WHERE email=?', (at['sub'],))
+                    db.commit()
+
                     return redirect(url_for('auth.otp_page'))
-            else:
+            else: # qui se abbiamo il refresh_token allora carichiamo la sessione utente e veniamo 
+                # ridirezionati alla home
                 rt = literal_eval(request.cookies.get('refresh_token'))
                 user = db.execute('SELECT * FROM user WHERE email = ?',
                                   (rt['sub'],)).fetchone()
@@ -331,9 +351,21 @@ def token_operation():
 
 @bp.route('/login/oauth')
 def login_oauth():
-        
-    return redirect('https://127.0.0.1:9001/auth/login?redirect_uri=https://127.0.0.1:9001/rURI&scope=hooligans&response_type=code')
 
+    rt = request.cookies.get('refresh_token')
+
+    if rt == None:
+        return redirect('https://127.0.0.1:9001/auth/login?redirect_uri=https://127.0.0.1:9001/rURI&scope=hooligans&response_type=code')
+    else:
+        rt = literal_eval(rt)
+        db = get_db()
+        rt = literal_eval(request.cookies.get('refresh_token'))
+        user = db.execute('SELECT * FROM user WHERE email = ?',
+                                  (rt['sub'],)).fetchone()
+        session['user_id'] = user['id']
+        return redirect(url_for('site.index'))
+
+# controlliamo che l'utente sia sempre loggato, abbiamo sempre i token e clientId e clientSecret
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
@@ -346,9 +378,24 @@ def login_required(view):
         user = db.execute('SELECT * FROM user WHERE id = ?',
                       (user_id,)).fetchone()
 
-        if request.cookies.get('refresh_token') == None and user['token_required'] == 1:
-            flash('Token Scaduto')
+        if user['token_required'] == 1 and request.cookies.get('clientId') == None:
             session.clear()
+            flash('Manca clientId')
+            return redirect(url_for('auth.login'))
+        
+        if user['token_required'] == 1 and request.cookies.get('clientSecret') == None:
+            session.clear()
+            flash('Manca clientSecret')
+            return redirect(url_for('auth.login'))
+
+        if request.cookies.get('refresh_token') == None and user['token_required'] == 1:
+            session.clear()
+
+            db.execute('UPDATE user SET otp_required=1 WHERE id=?', user_id)
+            db.commit()
+
+
+            flash('Token Scaduto')
             return redirect(url_for('auth.login'))
         else:
             if request.cookies.get('access_token') == None and user['token_required'] == 1:

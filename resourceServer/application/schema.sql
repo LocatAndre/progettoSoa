@@ -11,7 +11,8 @@ CREATE TABLE user (
     email text NOT NULL,
     password NOT NULL,
     otpSecret text NOT NULL,
-    token_required integer NOT NULL DEFAULT 0 CHECK(token_required IN (0,1))
+    token_required integer NOT NULL DEFAULT 0 CHECK(token_required IN (0,1)),
+    otp_required integer NOT NULL DEFAULT 1 CHECK(token_required IN (0,1))
 );
 
 CREATE TABLE user_team (

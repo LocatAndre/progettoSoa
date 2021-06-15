@@ -1,7 +1,7 @@
 from flask import Blueprint, url_for, g, redirect, session, render_template, flash, request
 from .auth import login_required
 from .db import get_db
-
+# servono per spezzare il codice
 bp = Blueprint('site', __name__)
 
 
@@ -10,6 +10,7 @@ def index():
     return render_template('/site/index.html')
 
 
+# futura implementazione
 @bp.route('/user/updateUser', methods=['POST'])
 @login_required
 def updateUser():
@@ -48,7 +49,7 @@ def updateUser():
 
     return redirect(url_for('site.userInfo'))
 
-
+# futura implementazione
 @bp.route('/user')
 @login_required
 def userInfo():
@@ -59,6 +60,7 @@ def userInfo():
     return render_template('/site/user_info.html', user=user)
 
 
+# futura implementazione
 @bp.route('/user/delete')
 @login_required
 def deleteUser():

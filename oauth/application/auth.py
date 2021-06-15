@@ -33,6 +33,62 @@ from .db import get_db
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+@bp.route('/register')
+def register():
+
+    redirect_uri = request.args.get('redirect_uri')
+    scope = request.args.get('scope')
+
+    return render_template('site/register.html', scope=scope, ru=redirect_uri)
+
+# inseriamo le info del client (clientId e clientSecret) in CLientInformation
+@bp.route('/register/checkregister', methods=['POST'])
+def checkregister():
+    password1 = request.form['password1']
+    password2 = request.form['password2']
+    email = request.form['email']
+
+    # Segreto casuale per registrazione client "fisico"
+    clientId = base64.b32encode(os.urandom(10)).decode('utf-8')
+    clientSecret = base64.b32encode(os.urandom(10)).decode('utf-8')
+
+    db = get_db()
+    error = None
+
+    if not password1 or not password2 or not email:
+        error = 'Campi mancanti'
+    elif db.execute('SELECT username FROM UserInformation WHERE username = ?', (email,)
+                    ).fetchone() is not None:
+        error = '{} è già iscritto.'.format(email)
+    elif password1 != password2:
+        error = 'Le 2 password non coincidono'
+    elif password1 == password1 and len(password1) < 8:
+        error = 'Password troppo fragile'
+
+    if error is None:
+        db.execute('INSERT INTO UserInformation(username,password) VALUES(?,?)',
+                   (email, generate_password_hash(password1))
+                   )
+        db.commit()
+
+        db.execute('INSERT INTO ClientInformation(clientId,clientSecret,user) VALUES(?,?,?)',
+                   (clientId, clientSecret, email)
+                   )
+        db.commit()
+
+        # Genero i cookie contententi le informazioni
+        # Il client potrà riutilizzarlo per i prossimi login
+        resp = make_response(render_template('site/login.html'))
+        resp.set_cookie('clientId', clientId, expires=datetime.now(
+        ) + timedelta(days=90))
+        resp.set_cookie('clientSecret', generate_password_hash(clientSecret),
+                        expires=datetime.now() + timedelta(days=90))
+        return resp
+
+    flash(error)
+    return redirect(url_for('auth.register'))
+
+
 
 @bp.route('/login')
 def login():
@@ -44,20 +100,142 @@ def login():
     return render_template('site/login.html', scope=scope, redirect_uri=redirect_uri, response_type=response_type)
 
 
+@bp.route('/login/checkUser', methods=['POST'])
+def checkUser():
+    email = request.form.get('email')
+    password = request.form.get('password')
+    clientId = request.cookies.get('clientId')
+    redirect_uri = request.args.get('redirect_uri')
+    scope = request.args.get('scope')
+    response_type = request.args.get('response_type')
+    reqId = base64.b32encode(os.urandom(10)).decode('utf-8')
+
+    db = get_db()
+    error = None
+    user = db.execute('SELECT * FROM UserInformation WHERE username = ?',
+                      (email,)).fetchone()
+
+    # qui se non ci sono i cookie (gestiamo navigazione in incognito e cancellazione cookie)
+    if clientId == None:
+        client_information = db.execute('SELECT clientId, clientSecret FROM ClientInformation WHERE user=?', (email,)).fetchone()
+
+        if user is None:
+            error = 'Mail non presente'
+        elif not check_password_hash(user['password'], password):
+                error = 'Password errata'
+
+        if error is None:
+            session['user_id'] = user['username']
+            if redirect_uri == None and scope == None and response_type == None:
+                # Login utente al solo servizio di autenticazione (senza funzionalità OAuth)
+                return redirect(url_for('site.index'))
+            else: 
+                db.execute('INSERT INTO Request (reqId, clientId, redirectUri, scope, responseType) VALUES(?,?,?,?,?)',
+                           (reqId, client_information['clientId'], redirect_uri, scope, response_type)
+                           )
+                db.commit()
+                # Genero i cookie contententi le informazioni del client
+                # I client potrà riutilizzare per i prossimi login
+                resp = make_response(render_template('site/approve.html', reqId=reqId, scope=scope, redirect_uri=redirect_uri))
+                resp.set_cookie('clientId', client_information['clientId'], expires=datetime.now(
+                ) + timedelta(days=90))
+                resp.set_cookie('clientSecret', generate_password_hash(client_information['clientSecret']),
+                                expires=datetime.now() + timedelta(days=90))
+                return resp
+                #return redirect(url_for('auth.approve', reqId=reqId, scope=scope, redirect_uri=redirect_uri))
+    # qua utente non registrato o che credenziali non corrette
+    if user is None:
+        error = 'Mail non presente'
+    elif not check_password_hash(user['password'], password):
+        error = 'Mail o password non corretta'
+
+    if error is None:
+        # pulisce le sessioni precednti
+        # session.clear()
+        # crea un cookie di sessione per la sessione corrente
+        session['user_id'] = user['username']
+
+        if redirect_uri == None and scope == None and response_type == None:
+            # Login utente normale
+            return redirect(url_for('site.index'))
+        else: #registriamo la richiesta del token (con relativi parametri per successivi controlli)
+            db.execute('INSERT INTO Request (reqId, clientId, redirectUri, scope, responseType) VALUES(?,?,?,?,?)',
+                       (reqId, clientId, redirect_uri, scope, response_type)
+                       )
+            db.commit()
+            return redirect(url_for('auth.approve', reqId=reqId, scope=scope, redirect_uri=redirect_uri))
+
+    flash(error)
+    return redirect(url_for('auth.login'))
+
+
+@bp.route('/approve')
+def approve():
+
+    redirect_uri = request.args.get('redirect_uri')
+    scope = request.args.get('scope')
+    reqId = request.args.get('reqId')
+
+    return render_template('site/approve.html', redirect_uri=redirect_uri, scope=scope, reqId=reqId)
+
+# l'utente deve prestare il proprio consenso alla richiesta di token fatta dal client
+@bp.route('/checkApprove', methods=['POST'])
+def checkApprove():
+    email = session.get('user_id')
+
+    redirect_uri = request.form['redirect_uri']
+    scope = request.form['scope']
+
+    reqId = request.form['reqId']
+
+    db = get_db()
+
+    reqId_db = db.execute(
+        'SELECT reqId, clientId, scope, responseType FROM Request WHERE reqId=?', (reqId,)).fetchone()
+    # qui se non esiste alcuna richiesta di token fatta del client 
+    if reqId == None:
+        return 'Richiesta sconosciuta'
+    else:
+        # gestiamo solo responseType uguali a code ('authorization code flow')
+        if reqId_db['responseType'] == 'code':
+            clientId_cookie = request.cookies.get('clientId')
+            if clientId_cookie == reqId_db['clientId']:
+                if scope == reqId_db['scope']:
+                    # se la richiesta del client è legittima si crea l'authorization code
+                    authCode = base64.b32encode(os.urandom(10)).decode('utf-8')
+                    db.execute('INSERT INTO Code(authCode, clientId, scope) VALUES(?,?,?)',
+                               (authCode, reqId_db['clientId'], scope))
+                    db.commit()
+                    # una volta che la richiesta è stata servita viene rimossa da Request
+                    # per evitarne il riutilizzo
+                    db.execute('DELETE FROM Request WHERE reqId=?', (reqId_db['reqId'],))
+                    db.commit()
+                    return redirect(url_for('auth.rURI', authCode=authCode))
+                else:
+                    return redirect('auth.logout')
+            else:
+                return 'reqId sconosciuto'
+    return 'errore in fase di approvazione'
+
+
+# redirect_uri del client 
 @bp.route('/rURI')
 def rURI():
     authCode = request.args.get('authCode')
     
+    # qui se il client sta richiedendo i token per la prima volta
+    # o se i token sono entrambi scaduti 
     if authCode != None:
         clientSecret = request.cookies.get('clientSecret')
         clientId = request.cookies.get('clientId')
         grant_type = 'authorization_code'
         
         return redirect(url_for('auth.generate_token', authCode=authCode, clientSecret=clientSecret, clientId=clientId, grant_type=grant_type))
+    # qui se il client ha ancora il refresh_token e deve richiedere un nuovo acccess_token
     else:
         rt = request.args.get('rt')
         at = request.args.get('at')
-        
+        # qui inviamo i token al token_endpoint del resource server
         return redirect('https://127.0.0.1:8100/auth/token_endpoint?rt={}&at={}'.format(rt,at))
 
 
@@ -80,10 +258,14 @@ def generate_token():
         psw = u_data['password']
     else:
         psw = db.execute('SELECT password FROM UserInformation WHERE username=?', (session.get('user_id'),)).fetchone()['password']
-
+    # qui generiamo i token quando vengono richiesti per la prima volta (o sono scaduti)
+    # il client deve presentare l'authorization code
     if grant_type == 'authorization_code':
+        # qui controlliamo che l'authCode sia legittimo e che sia stato sottoposto da il client
+        # oer il quale è stato generato (confrontiamo gli hash dei clientSecret)
         if authCode == check_information['authCode'] and check_password_hash(clientSecret, check_information['clientSecret']):
-            
+            # puliamo la tabella del refresh_token perché, se scaduto, non è più utilizzabile ma rimane
+            # in memoria (non permettendo di inserire un'altra tupla per lo stesso clientSecret)
             db.execute('DELETE FROM RefreshToken WHERE clientSecret=?', (clientSecret,))
             db.commit()            
 
@@ -91,14 +273,15 @@ def generate_token():
             date_exp_at = date + timedelta(minutes=30)
             date_exp_rt = date + timedelta(minutes=120)
 
+            # creazione token (access e refresh, stesse informazioni ma scadenza diversa)
             payload_AT = {
-              'iss':    'https://localhost:9001/',
-              'sub':    session.get('user_id'),
-              'psw':    psw,
-              'aud':    'https://localhost:8100/',
-              'iat':    date.timestamp(),
-              'exp':    date_exp_at.timestamp(),
-              'jti':    base64.b32encode(os.urandom(10)).decode('utf-8')
+              'iss':    'https://localhost:9001/', # chi ha emesso il token
+              'sub':    session.get('user_id'), # utente per il quale è stato emesso il token
+              'psw':    psw, # password utente 
+              'aud':    'https://localhost:8100/', # destinatario del token 
+              'iat':    date.timestamp(), # momento di emissione token (in secondi trascorsi dal 1 gennaio 1970)
+              'exp':    date_exp_at.timestamp(), # scadenza token
+              'jti':    base64.b32encode(os.urandom(10)).decode('utf-8') # identificativo del token
             }
 
             payload_RT = {
@@ -110,13 +293,13 @@ def generate_token():
                 'exp':  date_exp_rt.timestamp(),
                 'jti':  base64.b32encode(os.urandom(10)).decode('utf-8')
             }
-            # Firma dei token
+            # Firma dei token con RSA (firmiamo con k_priv server OAuth)
             with open('/home/andrea/github/progettoSoa/oauth/cert/private_sign.pem', 'rb') as private_key:
                 token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256")
             with open('/home/andrea/github/progettoSoa/oauth/cert/private_sign.pem', 'rb') as private_key:
                 token_jwt_RT = jwt.encode(payload_RT, private_key.read(), algorithm="RS256")
 
-            # Leggo la chiave privata
+            # Leggo la chiave privata da cui ricaviamo k_pubb per la cifratura
             with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
 		            private_key = serialization.load_pem_private_key(
 			            key_file.read(),
@@ -127,6 +310,7 @@ def generate_token():
 
             # Divido il token per ogni . (header, payload e sign)
             splitted_at = token_jwt_AT.split('.')
+            #firmiamo il token con la k_pubb del resource server
             splitted_at[1] = public_key.encrypt(
 		            bytes(str(splitted_at[1]), 'utf-8'),
                     padding.OAEP(
@@ -159,11 +343,17 @@ def generate_token():
 
             db.execute('INSERT INTO RefreshToken(clientSecret, refreshToken) VALUES (?,?)', (clientSecret, token_jwt_RT))
             db.commit()
+            # cancelliamo l'authCode già utilizzato per evitare CSRF
+            print('auth code da cancellare: ', authCode)
+            print('clientId: ', clientId)
             db.execute('DELETE FROM Code WHERE authCode=? AND clientId=?', (authCode, clientId))
             db.commit()
 
             return redirect(url_for('auth.rURI', rt = base64.urlsafe_b64encode(bytes(str(final_token_rt),'utf-8')), at = base64.urlsafe_b64encode(bytes(str(final_token_at),'utf-8'))))
-    
+        else:
+            return 'Gli authCode non coincidono'
+    # qui se refresh_token è ancora valido
+    # generiamo un altro access_token
     elif grant_type == 'refresh_token':
             date = datetime.now()
             date_exp_at = date + timedelta(minutes=30)
@@ -212,98 +402,8 @@ def generate_token():
         return 'Token non supportato'
         
 
-@bp.route('/approve')
-def approve():
 
-    redirect_uri = request.args.get('redirect_uri')
-    scope = request.args.get('scope')
-    reqId = request.args.get('reqId')
-
-    return render_template('site/approve.html', redirect_uri=redirect_uri, scope=scope, reqId=reqId)
-
-
-
-@bp.route('/checkApprove', methods=['POST'])
-def checkApprove():
-    email = session.get('user_id')
-
-    redirect_uri = request.form['redirect_uri']
-    scope = request.form['scope']
-
-    reqId = request.form['reqId']
-
-    db = get_db()
-
-    reqId_db = db.execute(
-        'SELECT reqId, clientId, scope, responseType FROM Request WHERE reqId=?', (reqId,)).fetchone()
-
-    if reqId == None:
-        return 'Richiesta sconosciuta'
-    else:
-        if reqId_db['responseType'] == 'code':
-            clientId_cookie = request.cookies.get('clientId')
-            if clientId_cookie == reqId_db['clientId']:
-                if scope == reqId_db['scope']:
-                    authCode = base64.b32encode(os.urandom(10)).decode('utf-8')
-                    db.execute('INSERT INTO Code(authCode, clientId, scope) VALUES(?,?,?)',
-                               (authCode, reqId_db['clientId'], scope))
-                    db.commit()
-
-                    db.execute('DELETE FROM Request WHERE reqId=?', (reqId_db['reqId'],))
-                    db.commit()
-                    return redirect(url_for('auth.rURI', authCode=authCode))
-                else:
-                    return redirect('auth.logout')
-        else:
-            return 'responseType non supportato'
-
-
-@bp.route('/login/checkUser', methods=['POST'])
-def checkUser():
-    email = request.form.get('email')
-    password = request.form.get('password')
-
-    clientId = request.cookies.get('clientId')
-
-    redirect_uri = request.args.get('redirect_uri')
-    scope = request.args.get('scope')
-    response_type = request.args.get('response_type')
-
-    reqId = base64.b32encode(os.urandom(10)).decode('utf-8')
-
-    print(response_type)
-
-    db = get_db()
-    error = None
-    user = db.execute('SELECT * FROM UserInformation WHERE username = ?',
-                      (email,)).fetchone()
-
-    if user is None:
-        error = 'Mail non presente'
-    elif not check_password_hash(user['password'], password):
-        error = 'Pasword errata'
-
-    if error is None:
-        # pulisce le sessioni precednti
-        # session.clear()
-        # crea un cookie di sessione per la sessione corrente
-        session['user_id'] = user['username']
-
-        if redirect_uri == None and scope == None and response_type == None:
-            # Login utente normale
-            return redirect(url_for('site.index'))
-        else:
-            db.execute('INSERT INTO Request (reqId, clientId, redirectUri, scope, responseType) VALUES(?,?,?,?,?)',
-                       (reqId, clientId, redirect_uri, scope, response_type)
-                       )
-            db.commit()
-            return redirect(url_for('auth.approve', reqId=reqId, scope=scope, redirect_uri=redirect_uri))
-
-    flash(error)
-    return redirect(url_for('auth.login'))
-
-
-@bp.before_app_request
+@bp.before_app_request # facciamo questo controllo prima di ogni richiesta
 def load_logged_in_user():
     user_id = session.get('user_id')
 
@@ -320,64 +420,9 @@ def logout():
     return redirect(url_for('site.index'))
 
 
-@bp.route('/register/checkregister', methods=['POST'])
-def checkregister():
-    password1 = request.form['password1']
-    password2 = request.form['password2']
-    email = request.form['email']
-
-    # Segreto casuale per registrazione client "fisico"
-    clientId = base64.b32encode(os.urandom(10)).decode('utf-8')
-    clientSecret = base64.b32encode(os.urandom(10)).decode('utf-8')
-
-    db = get_db()
-    error = None
-
-    if not password1 or not password2 or not email:
-        error = 'Campi mancanti'
-    elif db.execute('SELECT username FROM UserInformation WHERE username = ?', (email,)
-                    ).fetchone() is not None:
-        error = '{} è già iscritto.'.format(email)
-    elif password1 != password2:
-        error = 'Le 2 password non coincidono'
-    elif password1 == password1 and len(password1) < 8:
-        error = 'Password troppo fragile'
-
-    if error is None:
-        db.execute('INSERT INTO UserInformation(username,password) VALUES(?,?)',
-                   (email, generate_password_hash(password1))
-                   )
-        db.commit()
-
-        db.execute('INSERT INTO ClientInformation(clientId,clientSecret,user) VALUES(?,?,?)',
-                   (clientId, clientSecret, email)
-                   )
-        db.commit()
-
-        # Genero il file contentente le informazioni
-        # I client potrà riutilizzare per i prossimi login
-        resp = make_response(render_template('site/login.html'))
-        resp.set_cookie('clientId', clientId, expires=datetime.now(
-        ) + timedelta(days=90))
-        resp.set_cookie('clientSecret', generate_password_hash(clientSecret),
-                        expires=datetime.now() + timedelta(days=90))
-        return resp
-
-    flash(error)
-    return redirect(url_for('auth.register'))
-
-
-@bp.route('/register')
-def register():
-
-    redirect_uri = request.args.get('redirect_uri')
-    scope = request.args.get('scope')
-
-    return render_template('site/register.html', scope=scope, ru=redirect_uri)
-
 
 def login_required(view):
-    @functools.wraps(view)
+    @functools.wraps(view) 
     def wrapped_view(**kwargs):
         if g.user is None:
             flash('Registrazione obbligatoria')

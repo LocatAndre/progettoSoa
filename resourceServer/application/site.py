@@ -1,3 +1,4 @@
+from os import error
 from flask  import  Blueprint, url_for, g, redirect, session, render_template, flash, request
 from .auth import login_required
 
@@ -87,29 +88,33 @@ def updateUser():
         db = get_db()
         db.execute('UPDATE user SET username=? WHERE id=?', (username, user_id))
         db.commit()
-    if password1 != '' and password2 != '':
-        if password1 == password2:
-            if len(password1) < 8:
-                flash('Password troppo fragile')
+    if user['token_required'] == 0:
+        if password1 != '' and password2 != '':
+            if password1 == password2:
+                if len(password1) < 8:
+                    flash('Password troppo fragile')
+                    return  redirect(url_for('site.userInfo'))
+                elif not check_password_hash(user['password'], oldPassword):
+                    flash('Vecchia password errata')
+                    return  redirect(url_for('site.userInfo'))
+                else:
+                    db = get_db()
+                    db.execute('UPDATE user SET password=? WHERE id=?', (generate_password_hash(password1), user_id))
+                    db.commit()
+            else:
+                flash('Le 2 password non coincidono')
                 return  redirect(url_for('site.userInfo'))
-            elif not check_password_hash(user['password'], oldPassword):
-                flash('Vecchia password errata')
+        if email != user['email']:
+            db = get_db()
+            if db.execute('SELECT id FROM user WHERE email = ?', (email,)).fetchone() is not None:
+                flash('Mail già presente')
                 return  redirect(url_for('site.userInfo'))
             else:
-                db = get_db()
-                db.execute('UPDATE user SET password=? WHERE id=?', (generate_password_hash(password1), user_id))
+                db.execute('UPDATE user SET email=? WHERE id=?', (email, user_id))
                 db.commit()
         else:
-            flash('Le 2 password non coincidono')
-            return  redirect(url_for('site.userInfo'))
-    if email != user['email']:
-        db = get_db()
-        if db.execute('SELECT id FROM user WHERE email = ?', (email,)).fetchone() is not None:
-            flash('Mail già presente')
-            return  redirect(url_for('site.userInfo'))
-        else:
-            db.execute('UPDATE user SET email=? WHERE id=?', (email, user_id))
-            db.commit()
+            flash('Non puoi cambiare queste credenziali, Login da server Oauth')
+            return redirect(url_for('site.userInfo'))
 
     return redirect(url_for('site.userInfo'))
 
