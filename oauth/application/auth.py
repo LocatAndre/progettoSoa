@@ -191,7 +191,7 @@ def checkApprove():
     db = get_db()
 
     reqId_db = db.execute(
-        'SELECT reqId, clientId, scope, responseType FROM Request WHERE reqId=?', (reqId,)).fetchone()
+        'SELECT reqId, clientId, scope, responseType, redirectUri FROM Request WHERE reqId=?', (reqId,)).fetchone()
     # qui se non esiste alcuna richiesta di token fatta del client 
     if reqId == None:
         return 'Richiesta sconosciuta'
@@ -200,17 +200,17 @@ def checkApprove():
         if reqId_db['responseType'] == 'code':
             clientId_cookie = request.cookies.get('clientId')
             if clientId_cookie == reqId_db['clientId']:
-                if scope == reqId_db['scope']:
+                if scope == reqId_db['scope'] and redirect_uri == reqId_db['redirectUri']:
                     # se la richiesta del client è legittima si crea l'authorization code
                     authCode = base64.b32encode(os.urandom(10)).decode('utf-8')
-                    db.execute('INSERT INTO Code(authCode, clientId, scope) VALUES(?,?,?)',
-                               (authCode, reqId_db['clientId'], scope))
+                    db.execute('INSERT INTO Code(authCode, clientId, scope, redirectUri) VALUES(?,?,?,?)',
+                               (authCode, reqId_db['clientId'], scope, reqId_db['redirectUri'],))
                     db.commit()
                     # una volta che la richiesta è stata servita viene rimossa da Request
                     # per evitarne il riutilizzo
                     db.execute('DELETE FROM Request WHERE reqId=?', (reqId_db['reqId'],))
                     db.commit()
-                    return redirect(url_for('auth.rURI', authCode=authCode))
+                    return redirect(url_for('auth.rURI', authCode=authCode, scope=scope, redirect_uri=redirect_uri))
                 else:
                     return redirect('auth.logout')
             else:
@@ -222,6 +222,8 @@ def checkApprove():
 @bp.route('/rURI')
 def rURI():
     authCode = request.args.get('authCode')
+    scope = request.args.get('scope')
+    redirect_uri = request.args.get('redirect_uri')
     
     # qui se il client sta richiedendo i token per la prima volta
     # o se i token sono entrambi scaduti 
@@ -230,7 +232,7 @@ def rURI():
         clientId = request.cookies.get('clientId')
         grant_type = 'authorization_code'
         
-        return redirect(url_for('auth.generate_token', authCode=authCode, clientSecret=clientSecret, clientId=clientId, grant_type=grant_type))
+        return redirect(url_for('auth.generate_token', authCode=authCode, clientSecret=clientSecret, clientId=clientId, grant_type=grant_type, scope=scope, redirect_uri=redirect_uri))
     # qui se il client ha ancora il refresh_token e deve richiedere un nuovo acccess_token
     else:
         rt = request.args.get('rt')
@@ -247,10 +249,12 @@ def generate_token():
     clientId = request.args.get('clientId')
     grant_type = request.args.get('grant_type')
     mail = request.args.get('mail')
+    scope = request.args.get('scope')
+    redirect_uri = request.args.get('redirect_uri')
 
     db = get_db()
     check_information = db.execute(
-        'SELECT authCode, clientSecret FROM ClientInformation INNER JOIN Code ON Code.clientId = ClientInformation.clientId WHERE clientInformation.clientId=?', (clientId,)).fetchone()
+        'SELECT authCode, clientSecret, scope, redirectUri FROM ClientInformation INNER JOIN Code ON Code.clientId = ClientInformation.clientId WHERE clientInformation.clientId=?', (clientId,)).fetchone()
 
     if mail is not None:
         u_data = db.execute('SELECT username,password FROM UserInformation WHERE username=?', (mail,)).fetchone()
@@ -263,7 +267,7 @@ def generate_token():
     if grant_type == 'authorization_code':
         # qui controlliamo che l'authCode sia legittimo e che sia stato sottoposto da il client
         # oer il quale è stato generato (confrontiamo gli hash dei clientSecret)
-        if authCode == check_information['authCode'] and check_password_hash(clientSecret, check_information['clientSecret']):
+        if authCode == check_information['authCode'] and check_password_hash(clientSecret, check_information['clientSecret']) and scope == check_information['scope'] and redirect_uri == check_information['redirectUri']:
             # puliamo la tabella del refresh_token perché, se scaduto, non è più utilizzabile ma rimane
             # in memoria (non permettendo di inserire un'altra tupla per lo stesso clientSecret)
             db.execute('DELETE FROM RefreshToken WHERE clientSecret=?', (clientSecret,))
@@ -372,7 +376,6 @@ def generate_token():
             with open('/home/andrea/github/progettoSoa/oauth/cert/private_sign.pem', 'rb') as private_key:
                 token_jwt_AT = jwt.encode(payload_AT, private_key.read(), algorithm="RS256")
             
-            print(token_jwt_AT)
             # Leggo la chiave privata
             with open('/home/andrea/github/progettoSoa/oauth/cert/private_key.pem', 'rb') as key_file:
 		            private_key = serialization.load_pem_private_key(

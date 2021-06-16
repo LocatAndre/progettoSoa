@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS Code(
     authCode string PRIMARY KEY,
     clientId string,
     scope string,
+    redirectUri string,
     FOREIGN KEY (clientId) REFERENCES ClientInformation (clientId)
 );
 CREATE TABLE IF NOT EXISTS Token(
