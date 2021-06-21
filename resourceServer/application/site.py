@@ -12,7 +12,8 @@ from application.footballDataAPI.footballData import(
     remove_to_favourites,
     get_favourite_team,
     get_user,
-    delete_User
+    delete_User,
+    get_last_matchday_team
 )
 
 bp = Blueprint('site', __name__)
@@ -35,33 +36,33 @@ def selected_league(competition,matchday):
     
     return render_template('/site/result.html', data = data, cmd = cmd, md = int(matchday), competition = competition)
 
-@bp.route('/team/<competition>/<team>')
+@bp.route('/team/<team>')
 @login_required
-def team(competition, team):
+def team(team):
     user_id = session.get('user_id')
     data = get_team_info(team)
     check_fav = check_alreadyfav(user_id, team)
-    cmd = get_current_league_matchday(int(competition))
+    cmd = get_last_matchday_team(team)
 
-    return render_template('/site/team.html', team = data, check_fav = check_fav, competition = int(competition), cmd = cmd)
+    return render_template('/site/team.html', team = data, check_fav = check_fav, cmd = cmd)
 
-@bp.route('/team/<competition>/<team>/addFavourites')
+@bp.route('/team/<team>/addFavourites')
 @login_required
-def addfavourites(competition, team):
+def addfavourites(team):
     user_id = session.get('user_id')
     add_to_favourites(user_id, team)
 
     data = get_team_info(team)
-    return redirect(url_for('site.team', competition=competition, team=team))
+    return redirect(url_for('site.team', team=team))
 
-@bp.route('/team/<competition>/<team>/removeFavourites')
+@bp.route('/team/<team>/removeFavourites')
 @login_required
-def removeFavourites(competition, team):
+def removeFavourites(team):
     user_id = session.get('user_id')
     remove_to_favourites(user_id, team)
 
     data = get_team_info(team)
-    return redirect(url_for('site.team', competition=competition, team=team))
+    return redirect(url_for('site.team', team=team))
 
 @bp.route('/team/favourites')
 @login_required

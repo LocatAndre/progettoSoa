@@ -391,7 +391,7 @@ def login_required(view):
         if request.cookies.get('refresh_token') == None and user['token_required'] == 1:
             session.clear()
 
-            db.execute('UPDATE user SET otp_required=1 WHERE id=?', user_id)
+            db.execute('UPDATE user SET otp_required=1 WHERE id=?', (user_id,))
             db.commit()
 
 

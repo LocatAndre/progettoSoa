@@ -87,6 +87,10 @@ def check_alreadyfav(user_id, team):
     else:
         return True
 
+def get_last_matchday_team(team):
+    db = get_db()
+    return db.execute('SELECT MAX(matchday) FROM matches WHERE id=?', (team,)).fetchone()
+
 def remove_to_favourites(user_id, team):
     db = get_db()
 
